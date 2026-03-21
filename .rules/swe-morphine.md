@@ -1,6 +1,6 @@
 ---
 description: "SWE-Morphine core principles - execution control, iterative progress, strict focus"
-alwaysApply: true
+alwaysApply: false
 globs:
   - "**/*"
 ---
