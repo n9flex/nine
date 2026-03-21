@@ -1,28 +1,36 @@
 # Scripting
 
-Allows you to automate tasks or create custom programs through the Code++ application.
+## How do I create my own program?
 
-## Supported Language
+You can automate hacking or other things by creating your own custom programs.
 
-**TypeScript**
+You can do this with the Code++ application.
+
+Hackhub supports **TypeScript** language for scripting.
+
+You can use the default TypeScript syntax. Additionally, Hackhub has functions and libraries defined for managing the game.
 
 ## Code++ Editor Features
 
-### Tabbed Editing
-### Themes (20 Available)
-- Dracula
-- Tokyo Night
-- Catppuccin
-### Custom Fonts
-### IntelliSense
-- Autocompletion
-- Type checking
-### Import/Export Support
-- Modules and imports
+*   **Tabbed editing** — Open and work on multiple files at once. Drag tabs to reorder them.
+*   **Themes** — Choose from 20 color themes (Dracula, Tokyo Night, Catppuccin, etc.) in Settings.
+*   **Fonts** — Pick your preferred font family and size in Settings.
+*   **IntelliSense** — Full autocomplete and type checking for all built-in APIs.
+*   **Import support** — Split code across files with
 
-## Execution
+```
+import
+```
+/
+```
+export
+```
 
-To run TypeScript programs, you need to install Node.js:
+(see "Modules & Imports").
+
+## I wrote the code, But how do I run it?
+
+After writing a program, you need the "node.js" package to run it.
 
 ```bash
 apt-get install node
@@ -33,8 +41,7 @@ To run a saved TypeScript file:
 ```bash
 node /path/to/yourprogram.ts
 ```
-
-## Create Your Own Program
+You can also press the "Play" button in the Code++ editor to run the active file directly.
 
 ## Converting code to command
 
@@ -44,17 +51,23 @@ If you put the code file you created into the "lib" folder, that file will now r
 
 Example:
 
+```bash
 /lib/myprogram.ts
-
+```
 In terminal:
 
+```bash
 myprogram
+```
 
 Another example:
 
+```bash
 /lib/custom-tool.ts
-
+```
+```bash
 custom-tool
+```
 
 ## Modules & Imports
 
@@ -140,7 +153,7 @@ import { } from "./file"
 
 Basic I/O functions for your scripts.
 
-## Printing Output
+### Printing Output
 
 ```typescript
 println("Hello World!");
@@ -267,7 +280,7 @@ checkLib("lynx")
 
 Returns true if package installed, and false for not installed.
 
-Installing Package
+## Installing Package
 
 ```typescript
 installLib(packageName: string) -> Promise<boolean>
