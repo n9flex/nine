@@ -1,0 +1,10 @@
+**v0.0.1**
+
+- Initial release
+- IP scanner with subnet resolution
+- Port status detection (open/forwarded/closed)
+- Service version detection
+- Color-coded terminal output
+- Automatic report generation to ./loot/
+- Global install via install.ts
+
