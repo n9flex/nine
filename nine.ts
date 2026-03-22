@@ -3,7 +3,7 @@
  * @app-description IP scanner, WiFi cracker, and full attack pipeline
  */
 
-const VERSION = "0.0.1";
+const VERSION = "0.0.2";
 
 import { UI } from "./lib/ui";
 import { Logger } from "./lib/logger";
