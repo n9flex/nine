@@ -2,8 +2,19 @@
  * NetTree module - Network topology discovery
  */
 
-import type { UI } from "../lib/ui";
+import { UI } from "../lib/ui";
 import type { Logger } from "../lib/logger";
+
+export const moduleInfo = {
+  name: "nettree",
+  command: "nettree",
+  aliases: ["-nt", "--nettree"],
+  description: "Network topology discovery",
+  args: ["target"],
+  requires: ["scanner"],
+  inputs: ["ports"],
+  outputs: ["nodes"],
+};
 
 // HackDB mapping for Python scripts
 const HACKDB_SCRIPTS: Record<string, string> = {
@@ -170,4 +181,22 @@ export async function runNetTree(
   });
 
   return nodes;
+}
+
+export async function run(args: string[], flags: Record<string, string>): Promise<void> {
+  const ui = UI.ctx();
+  if (!args.length) { ui.error(`Usage: nine ${moduleInfo.command} <target>`); return; }
+  
+  const target = args[0];
+  if (!Networking.IsIp(target)) {
+    ui.error("Invalid IP address");
+    return;
+  }
+  
+  const cwd = await FileSystem.cwd();
+  const nodes = await runNetTree(target, cwd.absolutePath, ui);
+  
+  // Save results using HackHub API
+  await FileSystem.WriteFile(`loot/${target}/${moduleInfo.name}.json`, JSON.stringify(nodes, null, 2), { recursive: true });
+  ui.success(`Results saved: loot/${target}/${moduleInfo.name}.json`);
 }

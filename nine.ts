@@ -8,6 +8,7 @@ const VERSION = "0.0.1";
 import { UI } from "./lib/ui";
 import { Logger } from "./lib/logger";
 import { scanIP } from "./modules/scanner";
+import * as nettree from "./modules/nettree";
 
 const ui = UI.ctx();
 const logger = new Logger();
@@ -40,6 +41,11 @@ const COLORS = {
   sectionTitle: "white", // USAGE headers
 } as const;
 
+// Module registry
+const MODULES = {
+  nettree: { module: nettree, aliases: nettree.moduleInfo.aliases },
+};
+
 async function main(args: string[], scriptLocation?: string): Promise<void> {
   // Set working directory if called from wrapper
   if (scriptLocation) {
@@ -56,7 +62,28 @@ async function main(args: string[], scriptLocation?: string): Promise<void> {
   ui.printGradient(CREDIT, ["pink", "sora", "purple"]);
   ui.newLine();
   
-  if (!args.length || !Networking.IsIp(args[0])) {
+  if (!args.length) {
+    showUsage();
+    return;
+  }
+  
+  // Check if first arg is a module command
+  const firstArg = args[0];
+  const moduleEntry = Object.entries(MODULES).find(([_, entry]) => 
+    entry.aliases.includes(firstArg) || firstArg === entry.module.moduleInfo.command
+  );
+  
+  if (moduleEntry) {
+    const [moduleName, moduleData] = moduleEntry;
+    const moduleArgs = args.slice(1); // Remove module command, keep target and flags
+    const flags = {};
+    
+    await moduleData.module.run(moduleArgs, flags);
+    return;
+  }
+  
+  // If no module matched, treat as IP scan
+  if (!Networking.IsIp(firstArg)) {
     showUsage();
     return;
   }
@@ -87,6 +114,7 @@ async function main(args: string[], scriptLocation?: string): Promise<void> {
 function showUsage() {
   ui.section("USAGE");
   ui.print("  nine <ip>          Scan target IP", COLORS.usageExample);
+  ui.print("  nine nettree <ip>  Network topology discovery (-nt)", COLORS.usageExample);
 }
 
 // Export for HackHub /lib/ compatibility
