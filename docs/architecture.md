@@ -6,10 +6,11 @@
 
 ## Philosophy
 
-- **Standalone modules**: Each module is an independent CLI command
-- **Manual chaining**: No automatic pipeline—users control the data flow
-- **JSON persistence**: All data saved to `./loot/<target>/` as structured JSON
-- **Standardized I/O**: Consistent input/output via `lib/types.ts` interfaces
+1. **Mission = Container of truth** - All data lives under a named mission
+2. **Attach once, run anywhere** - No repeated mission/target arguments
+3. **Module independence** - Each module is standalone but reads/writes to central manifest
+4. **Traceability** - Every action logged with timestamp, source, and results
+5. **No pipeline complexity** - Manual module execution, no automatic orchestration
 
 ---
 
@@ -17,71 +18,116 @@
 
 ```
 nine/
+├── core/
+│   ├── mission.ts          # MissionManager: create, attach, detach, loadManifest
+│   ├── session.ts          # Session persistence (.current_mission)
+│   └── runner.ts           # Module runner with manifest updates
 ├── lib/
-│   ├── storage.ts          # Filesystem abstraction (HackHub FileSystem API)
-│   ├── profile.ts          # Target profile management
+│   ├── storage.ts          # JSON read/write helpers
+│   ├── profile.ts          # Target profile management (legacy)
 │   ├── types.ts            # Shared TypeScript interfaces
 │   ├── ui.ts               # Unified output system
-│   └── logger.ts           # Logging utilities
+│   ├── logger.ts           # Logging utilities
+│   └── utils.ts            # Asset deduplication helpers
 ├── modules/
-│   ├── scanner.ts          # Port scanning
-│   ├── nettree.ts          # Network discovery (Python wrapper)
-│   └── exploit.ts          # Exploitation framework
+│   ├── recon/              # Reconnaissance modules
+│   │   ├── scanner.ts      # Port scanning
+│   │   ├── nettree.ts      # Network discovery
+│   │   ├── geoip.ts        # Geolocation IP
+│   │   ├── dig.ts          # DNS lookup
+│   │   ├── nslookup.ts     # NS records
+│   │   ├── mxlookup.ts     # MX records
+│   │   ├── subfinder.ts    # Subdomain discovery
+│   │   └── lynx.ts         # OSINT harvest
+│   ├── enum/               # Enumeration modules
+│   │   ├── pyUserEnum.ts   # User enumeration
+│   │   └── dirhunter.ts    # Directory bruteforce
+│   └── vuln/               # Vulnerability modules
+│       └── nuclei.ts       # Nuclei integration
 ├── nine.ts                 # Main CLI dispatcher
-└── loot/                   # Persistent data directory
-    └── <target>/
-        ├── profile.json     # Metadata and findings summary
-        └── <module>.json    # Module-specific results
-```
+└── loot/
+    └── <mission>/
+        ├── manifest.json   # Mission manifest (single source of truth)
+        └── .current_mission → Session file pointing to active mission
 
 ---
 
 ## Data Persistence
 
-### Target Profiles
+### Mission Manifest (Single Source of Truth)
 
-Each target (IP, domain, email, or name) has a dedicated directory under `./loot/<target>/`:
+Each mission has a dedicated directory under `./loot/<mission>/` with a central `manifest.json`:
 
-| File | Purpose |
-|------|---------|
-| `profile.json` | Metadata, timestamps, and summary of all findings |
-| `<module>.json` | Detailed results from each module execution |
-
-**Example `profile.json`:**
-```json
-{
-  "target": "211.189.37.178",
-  "type": "ip",
-  "created": "2026-03-22T02:55:46.440Z",
-  "updated": "2026-03-22T03:12:02.258Z",
-  "summary": {
-    "ips": ["211.189.37.178"],
-    "domains": [],
-    "emails": [],
-    "names": [],
-    "ports": [3389],
-    "modulesRun": ["scanner"]
-  }
+```typescript
+interface MissionManifest {
+  name: string;
+  created: string;
+  updated: string;
+  
+  // Entry points
+  seeds: Array<{
+    value: string;
+    type: "ip" | "domain" | "email" | "cidr";
+    addedAt: string;
+    resolvedIp?: string;
+  }>;
+  
+  // Discovered assets
+  assets: {
+    ips: Array<{
+      value: string;
+      status: "discovered" | "scanned" | "exploited" | "pwned";
+      deviceType?: "router" | "firewall" | "printer" | "server" | "workstation" | "unknown";
+      ports: PortInfo[];
+      parent?: string;
+      discoveredBy: string;
+      discoveredAt: string;
+    }>;
+    domains: Array<{
+      value: string;
+      source: "seed" | "subfinder" | "lynx" | "dns";
+      parent?: string;
+      resolvedIp?: string;
+      vulnerable?: boolean;
+      discoveredAt: string;
+    }>;
+    emails: string[];
+    credentials: Array<{user: string; pass: string; source: string}>;
+    hashes: string[];
+    ntlmHashes: Array<{
+      ip: string;
+      username: string;
+      hash: string;
+      cracked?: string;
+      dumpedAt: string;
+    }>;
+    sessions: Array<{
+      type: "jwt" | "cookie" | "token" | "api_key";
+      value: string;
+      source: string;
+      target: string;
+      extractedAt: string;
+    }>;
+    files: string[];
+  };
+  
+  // Execution history
+  history: Array<{
+    timestamp: string;
+    module: string;
+    target?: string;
+    action: string;
+    result: "success" | "failure" | "partial";
+    data?: any;
+  }>;
 }
 ```
 
-### Storage API (`lib/storage.ts`)
+### Session File
 
-```typescript
-// Write JSON data
-await writeJSON(target, "scanner.json", data);
-
-// Read JSON data
-const data = await readJSON<ScanResult>(target, "scanner.json");
-
-// List all targets
-const targets = await listTargets();
-
-// Load profile
-const profile = await loadProfile(target);
 ```
-
-**Important:** Always use `{ absolute: true }` with absolute paths via `FileSystem.cwd().absolutePath`.
+loot/.current_mission → {"mission": "MissionName", "attachedAt": "..."}
+```
 
 ---
 
@@ -93,83 +139,35 @@ Create `modules/<name>.ts` with these **6 standard sections**:
 
 ```typescript
 // 1. Imports
-import { UI } from "../lib/ui";
-import { loadProfile, saveModuleData, markModuleRun } from "../lib/profile";
-import { writeJSON } from "../lib/storage";
+import { UI } from "../../lib/ui";
+import { MissionManifest } from "../../lib/types";
 
 // 2. Module metadata
-export const moduleInfo = {
-  name: "modulename",
-  command: "command",
-  aliases: ["-a", "--alias"],
-  description: "Brief description",
-  args: ["target"],
-  flags: {},
-  // Pipeline declarations (optional)
-  requires: [],   // Dependency modules
-  inputs: [],     // Consumes from profile.summary
-  outputs: [],    // Produces for other modules
+export const meta = {
+  name: "scanner",
+  command: "scan",
+  description: "Port scanning module",
+  requires: [],           // Required modules to have run first
+  inputs: [],             // Data needed from manifest.assets
+  outputs: ["ports"],     // Data produced for manifest
 };
 
-// 3. Color configuration
-const COLORS = {
-  label: "white",
-  target: "pink",
-  success: "green",
-  warning: "orange",
-  error: "red",
-} as const;
-
-// 4. Types
-interface ModuleResult {
-  // Define output structure
-}
-
-// 5. Core logic
-async function executeModule(target: string, ui: UI): Promise<ModuleResult> {
+// 3. Core logic
+export async function run(
+  mission: MissionManifest,
+  ui: UI,
+  args?: string[]         // Optional additional args
+): Promise<{
+  success: boolean;
+  data?: any;              // Stored in manifest.history by runner
+  newAssets?: Array<{     // Runner auto-adds to manifest.assets
+    type: "ip" | "domain" | "email" | "credential" | "hash" | "session";
+    value: any;
+    parent?: string;
+  }>;
+}> {
   // Implementation using native HackHub APIs
-}
-
-// 6. CLI entry point
-export async function run(args: string[], flags: Record<string, string>): Promise<void> {
-  const ui = UI.ctx();
-  
-  if (!args.length) {
-    ui.error(`Usage: nine ${moduleInfo.command} <target>`);
-    return;
-  }
-  
-  const target = args[0];
-  
-  // Validate target type (IP vs domain)
-  if (!Networking.IsIp(target)) {
-    ui.error("This module requires a valid IP address");
-    return;
-  }
-  
-  const profile = await loadProfile(target);
-  
-  ui.info(`Running ${moduleInfo.name} on ${target}...`);
-  
-  // Execute module logic
-  const results = await executeModule(target, ui);
-  
-  // Save results
-  await saveModuleData(target, moduleInfo.name, {
-    results,
-    executedAt: new Date().toISOString(),
-  });
-  
-  // Update profile summary - CRITICAL for data persistence
-  profile.summary.ips = results.ips || profile.summary.ips;
-  profile.summary.ports = results.ports || profile.summary.ports;
-  profile.updated = new Date().toISOString();
-  await writeJSON(target, "profile.json", profile);
-  
-  // Mark as executed
-  await markModuleRun(target, moduleInfo.name);
-  
-  ui.success(`Results saved to loot/${target}/${moduleInfo.name}.json`);
+  // Return newAssets for runner to dedupe and add to manifest
 }
 ```
 
@@ -178,19 +176,19 @@ export async function run(args: string[], flags: Record<string, string>): Promis
 Add to `nine.ts`:
 
 ```typescript
-import * as myModule from "./modules/my-module";
+import * as scanner from "./modules/recon/scanner";
 
 const MODULES: Record<string, { module: any; aliases: string[] }> = {
-  scanner: { module: scanner, aliases: ["-s", "--scan"] },
-  mymodule: { module: myModule, aliases: ["-m", "--mymodule"] },
+  scan: { module: scanner, aliases: ["-s", "--scan"] },
 };
 ```
 
 Update `showUsage()`:
 ```typescript
 function showUsage() {
-  ui.print("  nine scanner <target>     Scan ports (-s, --scan)");
-  ui.print("  nine mymodule <target>    Description (-m, --mymodule)");
+  ui.print("  nine create <mission>       Create new mission");
+  ui.print("  nine attach <mission>       Attach to mission");
+  ui.print("  nine scan [ip]              Scan ports on IP (or all unscanned)");
 }
 ```
 
@@ -198,23 +196,19 @@ function showUsage() {
 
 ## Guidelines
 
-### Target Type Validation
+### Target Resolution
 
-The CLI dispatcher (`nine.ts:parseArgs`) automatically detects **IPs** and **domains** from positional arguments:
+Modules receive the full `MissionManifest` and resolve targets based on `args` or mission state:
 
 ```typescript
-// IP detection via Networking.IsIp()
-nine -s 192.168.1.1      // target = "192.168.1.1"
+// Specific target provided
+nine scan 192.168.1.1    // args = ["192.168.1.1"]
 
-// Domain detection via heuristic (contains dot, no spaces)
-nine -sub example.com    // target = "example.com"
+// No target - use mission assets with appropriate status
+nine scan                // runs on all unscanned IPs from manifest.assets.ips
 ```
 
-**Module validation responsibility:**
-- IP-based modules (`scanner`, `nettree`): Validate with `Networking.IsIp(target)`
-- Domain-based modules (`subfinder`, `lynx`): Reject IPs, accept `target.includes(".")`
-
-Always update `profile.summary` with discovered data so `nine show <target>` displays it correctly.
+**Default target behavior:** If no target specified, module runs on all assets of required type with appropriate status.
 
 ---
 
@@ -268,7 +262,6 @@ ui.printColumns("Label", "Value", { leftColor: "white", rightColor: "cyan" });
 | `red` | `#ff4c4cff` | Errors, closed ports |
 | `purple` | `rgba(195, 105, 255, 0.86)` | Internal IPs, counts |
 | `yellow` | `#fbbf24` | Testing state |
-| `sora` | `#ff2056` | Brand accent |
 
 ---
 
@@ -301,32 +294,84 @@ PortInfo[] → Filter open ports → SearchExploits → Try exploits → Exploit
 
 ---
 
-## Pipeline Architecture (Future)
+## CLI Reference
 
-Planned `nine full <target>` command for automated execution:
+### Mission Management
+
+```bash
+nine create <mission> [seed...]    # Create mission with optional seeds
+nine attach <mission>              # Attach to mission (creates if needed)
+ nine detach                        # Detach current mission
+nine status                        # Show current mission + assets summary
+nine show                          # Full mission details
+nine assets                        # List all assets (IPs, domains, creds)
+nine history                       # Show execution history
+```
+
+### Module Execution
+
+```bash
+nine scan [ip]                     # Port scan (default: all unscanned IPs)
+nine nettree [ip]                  # Network discovery
+nine lynx <term>                   # OSINT harvest
+nine exploit [ip]                  # Run exploits
+nine brute [ip]                    # Brute force services
+```
+
+**Note:** Target is optional - if not provided, module runs on all applicable mission assets.
+
+## Testing Strategy
+
+### Workflow: Test → Validate → Implement
+
+1. **Write test** - Create test file in `tests/` validating expected behavior
+2. **Validate on HackHub** - Copy test to HackHub terminal, verify APIs work
+3. **Implement** - Write actual module/feature based on validated test
+4. **Verify** - Run implementation on HackHub to confirm it works
+
+### Test Structure
+
+Single `tests/` directory at root (flat structure, easy to copy to HackHub):
 
 ```
-┌─────────┐    ┌──────────┐    ┌─────────┐    ┌──────────┐    ┌─────────┐
-│  recon  │───→│ scanner  │───→│ nettree │───→│  lynx   │───→│ exploit │
-└────┬────┘    └────┬─────┘    └────┬────┘    └────┬─────┘    └────┬────┘
-     │              │               │              │              │
-     ▼              ▼               ▼              ▼              ▼
- domains         ports           IPs           emails        shells
- emails         versions       routers          names
-  names         services      devices      credentials
+tests/
+├── test-mission-core.ts      # MissionManager tests
+├── test-session.ts           # Session persistence tests
+├── test-runner.ts            # Module runner tests
+├── test-scanner.ts           # Scanner module validation
+└── test-full-flow.ts         # Integration test
 ```
 
-*Dependencies are checked at runtime via `profile.summary.modulesRun` and cross-module data is retrieved via `getModuleData()`.*
+Each test file:
+- Is standalone (can run independently on HackHub)
+- Uses real APIs (FileSystem, Networking, etc.)
+- Validates both success and error cases
+- Outputs clear pass/fail results
 
-**Module dependencies:**
+### Test Pattern
 
-| Module | Outputs | Consumed By |
-|--------|---------|-------------|
-| `recon` | domains, emails, names, ips | `scanner`, `lynx` |
-| `scanner` | ports, ips | `exploit`, `nettree` |
-| `nettree` | ips (discovered) | `scanner` |
-| `lynx` | emails, names, social | `recon` |
-| `exploit` | shells, vulnerablePorts | — |
+```typescript
+async function testCreateMission(): Promise<boolean> {
+  const ui = UI.ctx();
+  ui.info("Testing: create mission");
+  
+  try {
+    const manager = new MissionManager();
+    const manifest = await manager.create("test", ["192.168.1.1"]);
+    
+    if (manifest.name !== "test") {
+      ui.error("FAIL: mission name mismatch");
+      return false;
+    }
+    
+    ui.success("PASS: create mission");
+    return true;
+  } catch (err) {
+    ui.error(`FAIL: ${err}`);
+    return false;
+  }
+}
+```
 
 ---
 
@@ -335,11 +380,10 @@ Planned `nine full <target>` command for automated execution:
 | Document | Purpose |
 |----------|---------|
 | `docs/hackhub-api.md` | HackHub API reference |
-| `docs/create-module.md` | Step-by-step module creation guide |
-| `lib/types.ts` | Shared TypeScript interfaces (PortInfo, ModuleFindings) |
+| `lib/types.ts` | Shared TypeScript interfaces (PortInfo, MissionManifest) |
 | `lib/ui.ts` | UI system and color palette |
-| `lib/storage.ts` | Data persistence utilities |
-| `lib/profile.ts` | Profile management |
-| `modules/scanner.ts` | Complete module reference |
+| `core/mission.ts` | MissionManager implementation |
+| `core/runner.ts` | Module runner with manifest integration |
+| `lib/utils.ts` | Asset deduplication utilities |
 | `.rules/hackhub.md` | Coding standards (No Fake Bash) |
-| `.windsurf/workflows/create-module.md` | Windsurf workflow for automated module creation |
+| `.windsurf/workflows/create-module.md` | Module creation workflow |
