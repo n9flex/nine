@@ -1,135 +1,266 @@
 # Creating a Nine Module
 
-Quick reference for adding new capabilities to the Nine CLI.
+Guide for creating modules in Nine CLI v3 (mission-centric architecture).
 
 ## Module Structure
 
 ```
-modules/<name>.ts
-├── moduleInfo        # CLI registration metadata
-├── COLORS            # Visual configuration
-├── Types             # Interfaces for data structures
-├── Core Functions    # Business logic
-└── run()             # CLI entry point
+modules/<category>/<name>.ts
+├── meta           # Module metadata (name, command, category, I/O)
+├── run()          # CLI entry point (mission, ui, args)
+└── execute()      # Core logic (optional helper)
 ```
 
-## Minimal Template
+## Quick Start
 
 ```typescript
+import { UI } from "../../lib/ui";
+import type { MissionManifest, ModuleResult } from "../../lib/types";
+
+export const meta = {
+  name: "geoip",
+  command: "geoip",
+  category: "recon",      // recon | enum | vuln | exploit | post
+  targetTypes: ["ip"],    // ip | domain | email | any
+  requires: [],           // Modules that must run first
+  outputs: ["location"], // Data produced for manifest
+};
+
+export async function run(
+  mission: MissionManifest,
+  ui: UI,
+  args?: string[]
+): Promise<ModuleResult> {
+  // Get target from args or mission defaults
+  const target = args?.[0] || getUnscannedIp(mission);
+  if (!target) {
+    ui.error("No target specified and no unscanned IPs in mission");
+    return { success: false, error: "No target" };
+  }
+
+  // Validate target type
+  if (!Networking.IsIp(target)) {
+    ui.error("geoip requires an IP address");
+    return { success: false, error: "Invalid target type" };
+  }
+
+  ui.info(`Running geoip on ${target}...`);
+
+  // Execute module logic
+  try {
+    const location = await Networking.GeoIp(target);
+    
+    ui.success(`Location: ${location.country}, ${location.city}`);
+    
+    return {
+      success: true,
+      data: { location, timestamp: new Date().toISOString() },
+      // No new assets discovered
+      newAssets: [],
+      duration: 0, // Track if needed
+    };
+  } catch (err) {
+    ui.error(`GeoIP failed: ${err}`);
+    return { success: false, error: String(err) };
+  }
+}
+
+// Helper to get default target from mission
+function getUnscannedIp(mission: MissionManifest): string | null {
+  const unscanned = mission.assets.ips.find(ip => ip.status === "discovered");
+  return unscanned?.value || null;
+}
+```
+
+## Module Metadata
+
+```typescript
+interface ModuleMeta {
+  name: string;           // Unique identifier
+  command: string;        // CLI command (e.g., "scan", "geoip")
+  category: "recon" | "enum" | "vuln" | "exploit" | "post";
+  targetTypes: ("ip" | "domain" | "email" | "any")[];
+  requires: string[];     // Module names that must run first
+  inputs?: string[];      // Manifest data needed
+  outputs: string[];     // Data produced for manifest
+}
+```
+
+## Target Resolution
+
+Modules support default targets based on mission state:
+
+```typescript
+// IP-based modules: default to unscanned IPs
+const target = args?.[0] || mission.assets.ips
+  .find(ip => ip.status === "discovered")?.value;
+
+// Domain-based modules: default to domains needing DNS resolution  
+const target = args?.[0] || mission.assets.domains
+  .find(d => !d.resolvedIp)?.value;
+
+// Any module: accept any seed or discovered asset
+const target = args?.[0] || [...mission.seeds, ...mission.assets.ips][0]?.value;
+```
+
+## Adding Assets to Mission
+
+Return `newAssets` to auto-add discoveries:
+
+```typescript
+return {
+  success: true,
+  data: scanResults,
+  newAssets: [
+    { type: "ip", value: "192.168.1.45", parent: "192.168.1.1" },
+    { type: "domain", value: "sub.banque.mx", parent: "banque.mx" },
+    { type: "email", value: "admin@banque.mx", domain: "banque.mx" },
+  ],
+};
+```
+
+## Registering in nine.ts
+
+```typescript
+import { meta as geoipMeta, run as geoipRun } from "./modules/recon/geoip";
+
+const MODULES: Record<string, { meta: ModuleMeta; run: ModuleFn }> = {
+  // ... existing modules
+  geoip: { meta: geoipMeta, run: geoipRun },
+};
+
+// Update help
+function showUsage() {
+  ui.print("  nine geoip [ip]          Geolocation lookup");
+}
+```
+
+## Testing Your Module
+
+1. **Create test first**: `tests/test-geoip.ts`
+2. **Validate on HackHub**: Copy test, verify APIs
+3. **Implement module**: Follow template above
+4. **Verify**: Run on HackHub
+
+```typescript
+// tests/test-geoip.ts
 import { UI } from "../lib/ui";
-import { loadProfile, saveModuleData, markModuleRun } from "../lib/profile";
-import { writeJSON } from "../lib/storage";
 
-export const moduleInfo = {
-  name: "<name>",
-  command: "<command>",
-  aliases: ["-<short>", "--<long>"],
-  description: "What it does",
-  args: ["target"],
-  // Optional: declare pipeline dependencies
-  requires: [],      // Modules that must run first (e.g., ["scanner"])
-  inputs: [],        // Data needed from profile.summary (e.g., ["ports"])
-  outputs: [],       // Data produced for others (e.g., ["findings"])
-};
-
-const COLORS = {
-  label: "white",
-  target: "pink",
-  success: "green",
-  error: "red",
-} as const;
-
-export async function run(args: string[], flags: Record<string, string>): Promise<void> {
+async function testGeoip(): Promise<boolean> {
   const ui = UI.ctx();
-  if (!args.length) { ui.error(`Usage: nine ${moduleInfo.command} <target>`); return; }
   
-  const target = args[0];
-  const profile = await loadProfile(target);
-  
-  // Execute logic
-  const results = await executeLogic(target, ui);
-  
-  // Persist
-  await saveModuleData(target, moduleInfo.name, results);
-  await updateProfileSummary(profile, results);
-  await markModuleRun(target, moduleInfo.name);
-  
-  ui.success(`Complete: loot/${target}/${moduleInfo.name}.json`);
-}
-```
-
-## Target Validation
-
-Modules should validate their target type:
-
-```typescript
-// For IP-based modules (scanner, nettree)
-if (!Networking.IsIp(target)) {
-  ui.error("Invalid IP address");
-  return;
+  try {
+    const result = await Networking.GeoIp("8.8.8.8");
+    if (result && result.country) {
+      ui.success("PASS: GeoIP API works");
+      return true;
+    }
+    ui.error("FAIL: GeoIP returned invalid data");
+    return false;
+  } catch (err) {
+    ui.error(`FAIL: ${err}`);
+    return false;
+  }
 }
 
-// For domain-based modules (subfinder, lynx)
-if (Networking.IsIp(target)) {
-  ui.error("This module requires a domain name, not an IP");
-  return;
-}
+// Run: node tests/test-geoip.ts
 ```
 
-The CLI dispatcher automatically detects IPs and domains in `parseArgs()` — use the appropriate validation in your module.
+## Code Standards
 
-Add to `nine.ts`:
-
+### Imports
 ```typescript
-import * as <name> from "./modules/<name>";
+// Correct
+import { UI } from "../../lib/ui";
+import type { MissionManifest, ModuleResult } from "../../lib/types";
 
-const MODULES = {
-  // ...existing modules
-  <name>: { module: <name>, aliases: moduleInfo.aliases },
-};
+// Wrong
+import { Sora } from "../lib/sora";  // Don't use Sora, use UI
 ```
 
-Update `showUsage()`:
-
+### Paths
 ```typescript
-ui.print("  nine <command> <target>       Description (-<short>)");
+// Correct - absolute paths
+const cwd = await FileSystem.cwd();
+await FileSystem.WriteFile(`${cwd.absolutePath}/loot/file.json`, data);
+
+// Wrong - relative paths
+await FileSystem.WriteFile("loot/file.json", data);  // May fail
 ```
 
-## Data Persistence
-
-| Function | Purpose |
-|----------|---------|
-| `loadProfile(target)` | Get/create target metadata |
-| `saveModuleData(target, name, data)` | Save module results |
-| `updateProfile(target, {ips, ports, ...})` | Update summary for chaining |
-| `markModuleRun(target, name)` | Track execution |
-| `getModuleData<T>(target, name)` | Read another module's data |
-
-## UI Palette
-
-Available colors: `white`, `gray`, `pink`, `cyan`, `green`, `orange`, `red`, `sora`, `yellow`, `purple`.
-
-## Pipeline Integration
-
-Declare dependencies in `moduleInfo`:
-
+### Output
 ```typescript
-requires: ["scanner"],      // Modules that must run first
-inputs: ["ports"],          // Data needed from profile.summary
-outputs: ["findings"],      // Data produced for others
+// Correct
+const ui = UI.ctx();
+ui.info("Scanning...");
+ui.success("Complete");
+ui.error("Failed");
+ui.print("Data", "cyan");
+
+// Wrong
+println({ text: "message", color: "cyan" });  // Use UI wrapper
 ```
 
 ## Checklist
 
-- [ ] Export `moduleInfo` with metadata
-- [ ] Export `run(args, flags)` function
-- [ ] Validate target type (IP vs domain) before processing
-- [ ] Register in `nine.ts` MODULES map
-- [ ] Add to `showUsage()`
-- [ ] Use `UI.ctx()` for output
-- [ ] Define `COLORS` constant
-- [ ] Call `loadProfile(target)` first
-- [ ] Save with `saveModuleData()`
-- [ ] Update `profile.summary`
-- [ ] Call `markModuleRun()`
-- [ ] Use native HackHub APIs only (see `.rules/hackhub.md`)
+- [ ] Test written and validated on HackHub
+- [ ] `meta` object exported with all required fields
+- [ ] `run()` function exported with correct signature
+- [ ] Target validation (IP vs domain vs any)
+- [ ] Default target logic (uses mission state if no args)
+- [ ] Uses `UI.ctx()` for all output
+- [ ] Uses absolute paths for file operations
+- [ ] Only native HackHub APIs (no fake bash)
+- [ ] Returns `ModuleResult` with `success`, `data`, `newAssets`
+- [ ] Registered in `nine.ts` MODULES map
+- [ ] Added to `showUsage()`
+- [ ] Clean, typed, commented code
+
+## Common Patterns
+
+### Port Scanning Module
+```typescript
+export async function run(mission, ui, args) {
+  const target = args?.[0] || getUnscannedIp(mission);
+  if (!Networking.IsIp(target)) return { success: false };
+  
+  const subnet = await Networking.GetSubnet(target);
+  const ports = await subnet.GetPorts();
+  
+  // Process and return
+  return {
+    success: true,
+    data: { ports },
+    newAssets: [], // Would add discovered IPs here
+  };
+}
+```
+
+### Domain Module
+```typescript
+export async function run(mission, ui, args) {
+  const target = args?.[0] || getUnresolvedDomain(mission);
+  if (Networking.IsIp(target)) {
+    ui.error("Requires domain, not IP");
+    return { success: false };
+  }
+  
+  const result = await runExternalTool(target);
+  
+  return {
+    success: true,
+    data: result,
+    newAssets: result.subdomains?.map(d => ({
+      type: "domain", value: d, parent: target
+    })),
+  };
+}
+```
+
+## References
+
+- `.rules/hackhub.md` - HackHub API rules
+- `docs/hackhub-api.md` - Complete API reference  
+- `lib/ui.ts` - UI class and color palette
+- `lib/types.ts` - Shared TypeScript interfaces
+- `core/mission.ts` - MissionManager for data access
