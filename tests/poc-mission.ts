@@ -1,5 +1,5 @@
 /**
- * test-mission-v2.ts
+ * poc-mission.ts
  * Mission-Centric Architecture v2 - avec système d'attachement et multi-IP
  * 
  * Nouvelles fonctionnalités:
@@ -9,15 +9,15 @@
  * 4. Pas besoin de répéter mission + IP à chaque commande
  * 
  * Usage:
- *   run("/test-mission-v2.ts", ["create", "BanqueMexico", "211.189.37.178"])
- *   run("/test-mission-v2.ts", ["attach", "BanqueMexico"])           ← S'attacher
- *   run("/test-mission-v2.ts", ["scan", "211.189.37.178"])           ← Utilise mission attachée
- *   run("/test-mission-v2.ts", ["nettree", "211.189.37.178"])        ← Découvre multi-IPs
- *   run("/test-mission-v2.ts", ["status"])                           ← Voir mission active
- *   run("/test-mission-v2.ts", ["show"])                             ← Afficher sans nom
- *   run("/test-mission-v2.ts", ["list-assets"])                     ← Lister tous les IPs/assets
- *   run("/test-mission-v2.ts", ["scan-all"])                       ← Scanner tous les IPs de la mission
- *   run("/test-mission-v2.ts", ["detach"])                          ← Détacher
+ *   run("/poc-mission.ts", ["create", "BanqueMexico", "211.189.37.178"])
+ *   run("/poc-mission.ts", ["attach", "BanqueMexico"])           ← S'attacher
+ *   run("/poc-mission.ts", ["scan", "211.189.37.178"])           ← Utilise mission attachée
+ *   run("/poc-mission.ts", ["nettree", "211.189.37.178"])        ← Découvre multi-IPs
+ *   run("/poc-mission.ts", ["status"])                           ← Voir mission active
+ *   run("/poc-mission.ts", ["show"])                             ← Afficher sans nom
+ *   run("/poc-mission.ts", ["list-assets"])                     ← Lister tous les IPs/assets
+ *   run("/poc-mission.ts", ["scan-all"])                       ← Scanner tous les IPs de la mission
+ *   run("/poc-mission.ts", ["detach"])                          ← Détacher
  */
 
 declare namespace Shell {
@@ -946,12 +946,12 @@ async function main(): Promise<void> {
       println({ text: "    full-test               - Test complet", color: COLORS.gray });
       safePrintln("", COLORS.gray);
       println({ text: "EXEMPLE DE WORKFLOW:", color: COLORS.cyan });
-      println({ text: '  run("/test-mission-v2.ts", ["create", "Mexico", "211.189.37.178"])', color: COLORS.yellow });
-      println({ text: '  run("/test-mission-v2.ts", ["attach", "Mexico"])', color: COLORS.yellow });
-      println({ text: '  run("/test-mission-v2.ts", ["scan", "211.189.37.178"])', color: COLORS.yellow });
-      println({ text: '  run("/test-mission-v2.ts", ["nettree", "211.189.37.178"])', color: COLORS.yellow });
-      println({ text: '  run("/test-mission-v2.ts", ["list-assets"])   ← voit les IPs découverts', color: COLORS.yellow });
-      println({ text: '  run("/test-mission-v2.ts", ["scan-all"])      ← scan tous les IPs', color: COLORS.yellow });
+      println({ text: '  run("/poc-mission.ts", ["create", "Mexico", "211.189.37.178"])', color: COLORS.yellow });
+      println({ text: '  run("/poc-mission.ts", ["attach", "Mexico"])', color: COLORS.yellow });
+      println({ text: '  run("/poc-mission.ts", ["scan", "211.189.37.178"])', color: COLORS.yellow });
+      println({ text: '  run("/poc-mission.ts", ["nettree", "211.189.37.178"])', color: COLORS.yellow });
+      println({ text: '  run("/poc-mission.ts", ["list-assets"])   ← voit les IPs découverts', color: COLORS.yellow });
+      println({ text: '  run("/poc-mission.ts", ["scan-all"])      ← scan tous les IPs', color: COLORS.yellow });
       safePrintln("", COLORS.gray );
     }
   }
