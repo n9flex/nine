@@ -1,6 +1,6 @@
 # Creating a Nine Module
 
-Guide for creating modules in Nine CLI v3 (mission-centric architecture).
+Guide for creating modules in Nine CLI v0.1.0 (mission-centric architecture).
 
 ## Module Structure
 
