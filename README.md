@@ -14,37 +14,47 @@
 ⠀⠻⠿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠿⠛⠓⠀⠀⠀⠀⠀
 </pre>
 
-
 -- Overview --
-Modular CLI toolkit for HackHub. Fast IP scanner with clean output, structured logging, and extensible architecture for future WiFi/Exploit/Brute modules.
+Mission-centric penetration CLI toolkit. Attach once, run anywhere.
 
--- Usage --
-nine <ip>
+-- Core Concept --
+Mission = Container of truth
+- Create a mission with target seeds (IPs/domains)
+- Attach to work within that mission context  
+- All modules write to a centralized manifest
 
--- Examples --
-nine 192.168.1.1
-nine 10.0.0.5
-nine 211.189.37.178
+-- Commands --
+nine create <mission> [seeds...]  Create mission with optional seeds
+nine attach <mission>             Attach to existing mission
+nine detach                       Detach current mission
+nine status                       Show mission summary
+nine scan [ip]                    Port scanning module
+nine nettree [ip]                 Network discovery module
 
--- Output --
-OPEN      green   Port is open
-FORWARDED orange  Port forwarded through NAT
-CLOSED    red     Port is closed
+-- Quick Start --
+Create and attach to a mission:
+  nine create BankPentest 192.168.1.1
+  nine attach BankPentest
 
--- Features --
-- Color-coded ASCII art header
-- Subnet resolution with dual IP display (external/internal)
-- Router detection
-- Port status table with service detection
-- Automatic report generation in ./loot/<ip>/scan.txt
+Run modules:
+  nine scan
+  nine nettree
+
+-- Project Structure --
+nine/
+  core/         Mission, session, runner
+  lib/          Types, UI, storage, utils
+  modules/      Recon, enum, vuln modules
+  loot/         Mission data storage
+    <mission>/
+      manifest.json
 
 -- Install --
 Run from the repo directory:
-ts-node install.ts
+node install.ts
 
 -- Uninstall --
-ts-node install.ts --uninstall
+node install.ts --uninstall
 
 -- Requirements --
-- HackHub TypeScript environment
-- sora library (https://github.com/repository?r=sora)
+- apt-get install node
