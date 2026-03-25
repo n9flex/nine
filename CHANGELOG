@@ -1,3 +1,17 @@
+**v0.1.0**
+
+- Mission-centric architecture refacto
+- Core system: mission.ts, runner.ts, session.ts
+- Mission commands: create, attach, detach, status
+- Centralized UI library with color-coded output
+- Type definitions for manifests and module results
+- Storage abstraction layer
+
+**v0.0.2**
+
+- Fix netree module import issues
+- Nine can now use -nt or --netree
+
 **v0.0.1**
 
 - Initial release
@@ -7,8 +21,3 @@
 - Color-coded terminal output
 - Automatic report generation to ./loot/
 - Global install via install.ts
-
-**v0.0.2**
-
-- Fix netree module import issues
-- Nine can now use -nt or --netree
