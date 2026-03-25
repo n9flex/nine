@@ -1,6 +1,6 @@
 ---
 description: "HackHub API core principles - native TypeScript, no fake bash, no hallucination"
-alwaysApply: false
+alwaysApply: true
 globs:
   - "**/*.ts"
 ---
@@ -12,6 +12,7 @@ globs:
 - **ALWAYS** target the HackHub native API environment (global objects).
 - **NEVER** use standard Node.js modules (like `fs`, `path`, `child_process`).
 - **NEVER** keep cosmetic `sleep()` calls or fake loading screens.
+- **ALWAYS** add `// @ts-nocheck` at the beginning of files using HackHub internal APIs to avoid lint errors.
 
 ## The "No Fake Bash" Rule
 - **NEVER** use `Shell.Process.exec()`, `safeExec()`, or any bash command wrapper (e.g., `whois`, `dig`, `python3`, `nmap`).
