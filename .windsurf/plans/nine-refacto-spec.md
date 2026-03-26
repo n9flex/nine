@@ -1,4 +1,4 @@
-# Nine CLI v0.1.0 Specification
+# Nine CLI Specification
 
 Mission-centric penetration testing toolkit for HackHub with centralized data model and independent modules.
 
