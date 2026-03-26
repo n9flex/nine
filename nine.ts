@@ -10,52 +10,13 @@ import { getCurrentMission, setCurrentMission, clearCurrentMission } from "./cor
 import { executeModule } from "./core/runner";
 
 // ============================================================================
-// SECTION: Module Imports (Mock modules for testing)
+// SECTION: Module Imports (Reconnaissance Modules - M2)
 // ============================================================================
 
-const scanner = {
-  meta: {
-    name: "scanner",
-    command: "scan",
-    description: "Port scanning module",
-    requires: [],
-    inputs: [],
-    outputs: ["ports"]
-  },
-  async run(mission: MissionManifest, ui: UI, args?: string[]): Promise<ModuleResult> {
-    const target = args && args.length > 0 ? args[0] : null;
-    ui.info(`Scanning target: ${target || "all discovered IPs"}`);
-
-    // Mock scanning logic - return success with no new assets for basic test
-    return {
-      success: true,
-      data: { scanned: target || "all" },
-      newAssets: []
-    };
-  }
-};
-
-const nettree = {
-  meta: {
-    name: "nettree",
-    command: "nettree",
-    description: "Network discovery module",
-    requires: [],
-    inputs: ["ip"],
-    outputs: ["ips", "topology"]
-  },
-  async run(mission: MissionManifest, ui: UI, args?: string[]): Promise<ModuleResult> {
-    const target = args && args.length > 0 ? args[0] : null;
-    ui.info(`Running nettree on: ${target || "attached mission"}`);
-
-    // Mock nettree - might discover new IPs
-    return {
-      success: true,
-      data: { discovered: 0 },
-      newAssets: []
-    };
-  }
-};
+import * as scanner from "./modules/recon/scanner";
+import * as nettree from "./modules/recon/nettree";
+import * as geoip from "./modules/recon/geoip";
+import * as dig from "./modules/recon/dig";
 
 // ============================================================================
 // SECTION: Module Registry
@@ -63,7 +24,9 @@ const nettree = {
 
 const MODULES: Record<string, { module: typeof scanner; aliases: string[] }> = {
   scan: { module: scanner, aliases: ["-s", "--scan"] },
-  nettree: { module: nettree, aliases: ["-n", "--nettree"] }
+  nettree: { module: nettree, aliases: ["-n", "--nettree"] },
+  geoip: { module: geoip, aliases: ["-g", "--geoip"] },
+  dig: { module: dig, aliases: ["-d", "--dig"] }
 };
 
 // ============================================================================
@@ -112,6 +75,16 @@ export async function main(args?: string[], scriptLocation?: string): Promise<vo
     case "-n":
     case "--nettree":
       await handleModule("nettree", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "geoip":
+    case "-g":
+    case "--geoip":
+      await handleModule("geoip", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "dig":
+    case "-d":
+    case "--dig":
+      await handleModule("dig", effectiveArgs.slice(1), cwdAbsolute, ui);
       break;
     case "help":
     case "-h":
@@ -280,6 +253,8 @@ function showHelp(ui: UI): void {
   ui.print("Module Commands", "");
   ui.print("  scan", "Port scanning on targets");
   ui.print("  nettree", "Network discovery");
+  ui.print("  geoip", "Geolocation lookup");
+  ui.print("  dig", "DNS lookup");
   ui.divider();
   ui.print("Examples", "");
   ui.print("  nine create MyMission 192.168.1.1", "");
