@@ -23,20 +23,20 @@ const COLORS = {
 } as const;
 
 const NINE_ART = [
-  [{ text: "        ⠀⠀⣠⡶⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.ears }],
-  [{ text: "       ⠀⣰⣿⠃⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.ears }],
-  [{ text: "      ⢸⣿⣯⠀⠀⠀⠀⠀⠀⢠⣴⣿⣿⣿⣿⣦⠀⠀⠀⠀⠀", color: COLORS.ears }],
-  [{ text: "      ⢼⣿⣿⣆⠀⢀⣀⣀⣴⣿⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
-  [{ text: "      ⢸⣿⣿⣿⣿⣿⣿⣿⠿⠿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
-  [{ text: "      ⠀⢻⣿⠋⠙⢿⣿⣿⡀⠀⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
-  [{ text: "      ⠀⢸⠿⢆⣀⣼⣿⣿⣿⣿⡏⠀⢹⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
-  [{ text: "     ⠀⠀⡀⣨⡙⠟⣩⣙⣡⣬⣴⣤⠏⠀⠀⠀⠀⠀⠀", color: COLORS.body }, { text: "⣀", color: COLORS.tail }, { text: "⡀", color: COLORS.tail }],
-  [{ text: "     ⠀⠀⠙⠿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀", color: COLORS.body }, { text: "⣀⣤⣾⣿⣿⡇", color: COLORS.tail }],
-  [{ text: "     ⠀⠀⠀⠀⠀⢀⣿⣿⣿⣿⣿⣿⣇⠀", color: COLORS.body }, { text: "⢸⣿⣿⠿⠿⠛⠃", color: COLORS.tail }],
-  [{ text: "      ⠀⠀⠀⠀⢠⣿⣿⢹⣿⢹⣿⣿⣿", color: COLORS.body }, { text: "⢰⣿⠿⠃", color: COLORS.tail }, { text: "⠀⠀⠀⠀", color: COLORS.body }],
-  [{ text: "     ⠀⢀⣀⣤⣿⣿⣿⣿⣿⣿⣿⣿⣿", color: COLORS.body }, { text: "⣷⡛", color: COLORS.tail }, { text: "⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
-  [{ text: "     ⠀⠻⠿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠿⠛⠓⠀⠀⠀⠀⠀", color: COLORS.body }],
-  [{ text: "      ⠀⠀⠀⠀⠀⠀⠀⠉⠀⠉⠈⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.ears }],
+  [{ text: "                 ⠀⠀⣠⡶⠂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.ears }],
+  [{ text: "                ⠀⣰⣿⠃⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.ears }],
+  [{ text: "               ⢸⣿⣯⠀⠀⠀⠀⠀⠀⢠⣴⣿⣿⣿⣿⣦⠀⠀⠀⠀⠀", color: COLORS.ears }],
+  [{ text: "               ⢼⣿⣿⣆⠀⢀⣀⣀⣴⣿⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
+  [{ text: "               ⢸⣿⣿⣿⣿⣿⣿⣿⠿⠿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
+  [{ text: "               ⠀⢻⣿⠋⠙⢿⣿⣿⡀⠀⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
+  [{ text: "               ⠀⢸⠿⢆⣀⣼⣿⣿⣿⣿⡏⠀⢹⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
+  [{ text: "              ⠀⠀⡀⣨⡙⠟⣩⣙⣡⣬⣴⣤⠏⠀⠀⠀⠀⠀⠀", color: COLORS.body }, { text: "⣀", color: COLORS.tail }, { text: "⡀", color: COLORS.tail }],
+  [{ text: "              ⠀⠀⠙⠿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀", color: COLORS.body }, { text: "⣀⣤⣾⣿⣿⡇", color: COLORS.tail }],
+  [{ text: "              ⠀⠀⠀⠀⠀⢀⣿⣿⣿⣿⣿⣿⣇⠀", color: COLORS.body }, { text: "⢸⣿⣿⠿⠿⠛⠃", color: COLORS.tail }],
+  [{ text: "               ⠀⠀⠀⠀⢠⣿⣿⢹⣿⢹⣿⣿⣿", color: COLORS.body }, { text: "⢰⣿⠿⠃", color: COLORS.tail }, { text: "⠀⠀⠀⠀", color: COLORS.body }],
+  [{ text: "              ⠀⢀⣀⣤⣿⣿⣿⣿⣿⣿⣿⣿⣿", color: COLORS.body }, { text: "⣷⡛", color: COLORS.tail }, { text: "⠀⠀⠀⠀⠀⠀", color: COLORS.body }],
+  [{ text: "              ⠀⠻⠿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠿⠛⠓⠀⠀⠀⠀⠀", color: COLORS.body }],
+  [{ text: "               ⠀⠀⠀⠀⠀⠀⠀⠉⠀⠉⠈⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀", color: COLORS.ears }],
 ] as Array<Array<{ text: string; color: string }>>;
 
 // ============================================================================
