@@ -2,9 +2,9 @@
 // ============================================================================
 // SECTION 1: Imports
 // ============================================================================
-import { UI } from "../../lib/ui";
+import { UI, COLOR_PALETTE } from "../../lib/ui";
 import { MissionManifest, ModuleResult } from "../../lib/types";
-import { ensurePythonScript, runPythonModule } from "../../lib/python";
+import { ensurePythonScript, runPythonScript } from "../../lib/python";
 
 // ============================================================================
 // SECTION 2: Module Metadata
@@ -29,19 +29,9 @@ function resolveTargets(mission: MissionManifest, args?: string[]): string[] {
   if (args && args.length > 0) {
     return args;
   }
-  // Default: use mission assets with "discovered" status
   return mission.assets.ips
     .filter(ip => ip.status === "discovered")
     .map(ip => ip.value);
-}
-
-/**
- * Parses IP addresses from nettree output
- */
-function parseDiscoveredIps(output: string): string[] {
-  const ipRegex = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g;
-  const matches = output.match(ipRegex) || [];
-  return [...new Set(matches)]; // Remove duplicates
 }
 
 // ============================================================================
@@ -64,31 +54,13 @@ export async function run(
   const topologyResults: Array<{ target: string; output: string }> = [];
 
   for (const target of targets) {
-    ui.info(`Running nettree on ${target}...`);
+    ui.section("NET TREE DISCOVERY");
+    ui.info(`Target: ${target}`);
 
-    // Check python3 is available
-    if (!checkLib("python3")) {
-      ui.info("Installing python3...");
-      const installed = await installLib("python3");
-      if (!installed) {
-        ui.error("Failed to install python3");
-        // Fallback to mock discovery
-        ui.warn("Using mock discovery");
-        const mockIps = ["192.168.1.10", "192.168.1.11", "192.168.1.12"];
-        for (const ip of mockIps) {
-          allDiscovered.push({ type: "ip", value: ip, parent: target });
-        }
-        topologyResults.push({ target, output: "mock topology" });
-        continue;
-      }
-    }
-
-    // Download net_tree.py if needed
-    const cwd = await FileSystem.cwd();
-    const scriptAvailable = await ensurePythonScript("net_tree.py", "downloads", ui);
-
-    if (!scriptAvailable) {
-      ui.warn("Could not download net_tree.py, using mock discovery");
+    // Ensure script is available
+    const scriptPath = await ensurePythonScript("net_tree.py", "./python", ui);
+    if (!scriptPath) {
+      ui.warn("Using mock discovery");
       const mockIps = ["192.168.1.10", "192.168.1.11"];
       for (const ip of mockIps) {
         allDiscovered.push({ type: "ip", value: ip, parent: target });
@@ -97,40 +69,70 @@ export async function run(
       continue;
     }
 
-    const scriptPath = `${cwd.absolutePath}/downloads/net_tree.py`;
+    // Run net_tree.py
+    ui.info("Launching net_tree — visualizing network topology...");
+    ui.divider();
 
-    // Execute net_tree.py
-    const result = await runPythonModule(scriptPath, [target], ui);
-
+    const result = await runPythonScript(scriptPath, [target], ui);
     if (!result.success) {
-      ui.warn(`Nettree execution failed: ${result.error}`);
-      // Fallback: simulate discovery
-      const mockIps = ["192.168.1.10", "192.168.1.11"];
-      for (const ip of mockIps) {
-        allDiscovered.push({ type: "ip", value: ip, parent: target });
-      }
-      topologyResults.push({ target, output: `error: ${result.error}` });
+      ui.warn(`net_tree execution warning: ${result.error}`);
+    }
+
+    ui.divider();
+    ui.info("Network tree displayed above.");
+    ui.info("Enter discovered IPs (comma-separated), or 'skip' to continue.");
+    println([{ text: "  Example: 198.218.200.65, 165.67.183.7", color: COLOR_PALETTE.gray }]);
+
+    // Prompt for discovered IPs
+    const input = await prompt("IPs: ");
+    if (!input || input.toLowerCase() === "skip" || input.toLowerCase() === "q") {
+      ui.warn("No IPs entered — skipping.");
+      topologyResults.push({ target, output: "no manual input" });
       continue;
     }
 
-    // Parse discovered IPs from output
-    const discoveredIps = parseDiscoveredIps(result.output);
+    // Parse and validate IPs
+    const rawIPs = input.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    const validIPs: string[] = [];
 
-    if (discoveredIps.length === 0) {
-      // No IPs found in output, use fallback
-      ui.warn("No IPs found in nettree output, using fallback");
-      const fallbackIps = ["192.168.1.10", "192.168.1.11"];
-      for (const ip of fallbackIps) {
-        allDiscovered.push({ type: "ip", value: ip, parent: target });
-      }
-    } else {
-      ui.success(`Discovered ${discoveredIps.length} network devices`);
-      for (const ip of discoveredIps) {
-        allDiscovered.push({ type: "ip", value: ip, parent: target });
+    for (const raw of rawIPs) {
+      if (Networking.IsIp(raw)) {
+        if (!validIPs.includes(raw)) validIPs.push(raw);
+      } else {
+        ui.warn(`Skipping invalid IP: ${raw}`);
       }
     }
 
-    topologyResults.push({ target, output: result.output.substring(0, 500) });
+    if (!validIPs.length) {
+      ui.warn("No valid IPs entered.");
+      topologyResults.push({ target, output: "no valid IPs" });
+      continue;
+    }
+
+    // Enrich each IP with subnet data
+    ui.info(`Enriching ${validIPs.length} IP(s) with subnet data...`);
+    ui.divider();
+
+    for (const nodeIP of validIPs) {
+      try {
+        const subnet = await Networking.GetSubnet(nodeIP);
+        if (subnet) {
+          allDiscovered.push({ type: "ip", value: subnet.ip, parent: target });
+          const type = (subnet as any).type || "UNKNOWN";
+          println([{ text: `  ${subnet.ip} (${subnet.lanIp}) — ${type}`, color: COLOR_PALETTE.cyan }]);
+        } else {
+          allDiscovered.push({ type: "ip", value: nodeIP, parent: target });
+          ui.warn(`  ${nodeIP} — GetSubnet returned null`);
+        }
+      } catch {
+        allDiscovered.push({ type: "ip", value: nodeIP, parent: target });
+        ui.warn(`  ${nodeIP} — GetSubnet failed`);
+      }
+    }
+
+    ui.divider();
+    ui.success(`Discovered ${validIPs.length} network node(s).`);
+    topologyResults.push({ target, output: `discovered: ${validIPs.join(", ")}` });
   }
 
   return {
