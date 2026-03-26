@@ -1,3 +1,9 @@
+**v0.1.3**
+- Update nine to match milestone 2
+- Integrate recon modules: dig, geoip, nettree, scanner
+- Add Python library integration
+- Add module registry with aliases support
+
 **v0.1.2**
 - Add contexctual documentation for milestone 2
 - Add test for milestone 2
