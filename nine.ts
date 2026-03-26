@@ -3,7 +3,7 @@
 // SECTION: Imports
 // ============================================================================
 
-import { UI } from "./lib/ui";
+import { UI, COLOR_PALETTE } from "./lib/ui";
 import { MissionManifest, ModuleResult } from "./lib/types";
 import { createManifest, loadManifest } from "./core/mission";
 import { getCurrentMission, setCurrentMission, clearCurrentMission } from "./core/session";
@@ -256,8 +256,19 @@ async function handleModule(moduleName: string, args: string[], cwdAbsolute: str
 // SECTION: Help Display
 // ============================================================================
 
+// ============================================================================
+// SECTION: UI Helper for Centering
+// ============================================================================
+
+function centerText(text: string, width: number = 60): string {
+  const padding = Math.max(0, Math.floor((width - text.length) / 2));
+  return " ".repeat(padding) + text;
+}
+
 function showHelp(ui: UI): void {
-  ui.section("Nine CLI - Mission-centric Penetration CLI Toolkit");
+  println([{ text: "─".repeat(60), color: COLOR_PALETTE.gray }]);
+  println([{ text: centerText("Nine CLI Toolkit"), color: COLOR_PALETTE.purple }]);
+  println([{ text: "─".repeat(60), color: COLOR_PALETTE.gray }]);
   ui.print("Usage", "nine <command> [args...]");
   ui.divider();
   ui.print("Mission Commands", "");
@@ -274,6 +285,7 @@ function showHelp(ui: UI): void {
   ui.print("  nine create MyMission 192.168.1.1", "");
   ui.print("  nine attach MyMission", "");
   ui.print("  nine scan", "");
+  println([{ text: "─".repeat(60), color: COLOR_PALETTE.gray }]);
 }
 
 // ============================================================================
