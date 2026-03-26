@@ -51,6 +51,7 @@ export async function run(
   }
 
   const allResults: { target: string; ports: PortInfo[] }[] = [];
+  const newAssets: Array<{ type: "ip"; value: string; status: string; ports: PortInfo[]; discoveredBy: string; discoveredAt: string }> = [];
 
   for (const target of targets) {
     if (!Networking.IsIp(target)) {
@@ -93,11 +94,21 @@ export async function run(
         }
       }
 
-      // Update asset in mission
+      // Update asset in mission or create new one
       const asset = mission.assets.ips.find(ip => ip.value === target);
       if (asset) {
         asset.status = "scanned";
         asset.ports = ports;
+      } else {
+        // Create new asset for scanned target
+        newAssets.push({
+          type: "ip",
+          value: target,
+          status: "scanned",
+          ports,
+          discoveredBy: "scanner",
+          discoveredAt: new Date().toISOString(),
+        });
       }
 
       const openPorts = ports.filter(p => p.state === "open");
@@ -116,7 +127,7 @@ export async function run(
       scanned: allResults,
       scannedAt: new Date().toISOString(),
     },
-    newAssets: [], // Scanner updates existing assets, doesn't create new ones
+    newAssets,
   };
 }
 
