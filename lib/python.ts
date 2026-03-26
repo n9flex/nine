@@ -8,55 +8,113 @@ import { UI } from "./ui";
 // SECTION: Python Module Runner Helper
 // ============================================================================
 
+// HackDB mapping for common Python scripts
+export const HACKDB_SCRIPTS: Record<string, string> = {
+  "net_tree.py": "NetTree - Automated Network Tree Mapper",
+  "fern.py": "Fern - Router password cracker",
+  "pret.py": "Pret - Is your printer secure? Check before someone else does...",
+  "kimai.py": "Kimai-1.30.10 - SameSite Cookie-Vulnerability session hijacking",
+  "pyUserEnum.py": "pyUserEnum - Enumerate users on a subnet",
+  "jwt_decoder.py": "JWT Decoder",
+  "sqlmap.py": "Sqlmap",
+};
+
 /**
  * Ensures a Python script is available locally, downloading from HackDB if needed
- * @param scriptName - Name of the script (e.g., "net_tree.py")
- * @param downloadDir - Directory to download to (e.g., "downloads")
+ * Uses ReadDir pattern for reliable detection (avoids cwd.absolutePath issues)
+ * @param filename - Script filename (e.g., "net_tree.py")
+ * @param downloadDir - Directory to download to (e.g., "./python")
  * @param ui - UI instance for output
- * @returns Promise<boolean> - True if script is available
+ * @returns Promise<string | null> - Relative path to script if available, null on failure
  */
 export async function ensurePythonScript(
-  scriptName: string,
+  filename: string,
   downloadDir: string,
   ui: UI
-): Promise<boolean> {
-  const cwd = await FileSystem.cwd();
-  const scriptPath = `${cwd.absolutePath}/${downloadDir}/${scriptName}`;
+): Promise<string | null> {
+  const scriptName = filename.replace(".py", "");
+  const relativeDir = downloadDir.startsWith("./") ? downloadDir : `./${downloadDir}`;
 
-  // Check if script already exists
+  // Check if any version of the script exists in directory (ReadDir pattern)
   try {
-    await FileSystem.ReadFile(scriptPath, { absolute: true });
-    return true;
+    const files = await FileSystem.ReadDir(relativeDir, { absolute: false });
+    const scriptFile = files.find(f => f.name.startsWith(scriptName) && f.extension === "py");
+    if (scriptFile) {
+      return `${relativeDir}/${scriptFile.name}.${scriptFile.extension}`;
+    }
   } catch {
-    // Script doesn't exist, download it
+    // Directory doesn't exist or is empty
   }
 
-  ui.info(`Downloading ${scriptName} from HackDB...`);
+  ui.info(`${filename} not found. Downloading from HackDB...`);
+
+  // Ensure directory exists
+  try {
+    await FileSystem.Mkdir(relativeDir, { absolute: false });
+  } catch {
+    // Directory might already exist
+  }
+
+  // Download from HackDB
+  const hackdbTitle = HACKDB_SCRIPTS[filename];
+  if (!hackdbTitle) {
+    ui.error(`Unknown script: ${filename}`);
+    return null;
+  }
 
   try {
-    await HackDB.DownloadExploit(scriptName, downloadDir, { absolute: true });
-    return true;
+    await HackDB.DownloadExploit(hackdbTitle, relativeDir, { absolute: false });
+    ui.success(`${filename} downloaded successfully.`);
+    return `${relativeDir}/${filename}`;
   } catch (err) {
-    ui.error(`Failed to download ${scriptName}: ${String(err)}`);
-    return false;
+    ui.error(`Failed to download ${filename}: ${err}`);
+    return null;
   }
 }
 
 /**
- * Runs a Python module with the given arguments
- * CRITICAL: Shell.Process.exec does NOT return output directly
- * Must redirect to temp file then read it
- * @param scriptPath - Absolute path to the Python script
+ * Runs a Python script with the given arguments
+ * Direct Shell.Process.exec execution (no output capture needed for visual scripts)
+ * @param scriptPath - Path to the Python script (relative like "./python/net_tree.py")
  * @param args - Arguments to pass to the script
  * @param ui - UI instance for output
- * @param options - Optional timeout and other settings
- * @returns Promise<{ success: boolean; output: string; error?: string }>
+ * @returns Promise<{ success: boolean; error?: string }>
  */
-export async function runPythonModule(
+export async function runPythonScript(
   scriptPath: string,
   args: string[],
-  ui: UI,
-  options?: { timeout?: number }
+  ui: UI
+): Promise<{ success: boolean; error?: string }> {
+  // Check python3 is available
+  if (!checkLib("python3")) {
+    ui.info("Installing python3...");
+    const installed = await installLib("python3");
+    if (!installed) {
+      return { success: false, error: "python3 not available" };
+    }
+  }
+
+  try {
+    await Shell.Process.exec(`python3 ${scriptPath} ${args.join(" ")}`);
+    return { success: true };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Runs a Python script and captures output to temp file
+ * For scripts that produce parseable output
+ * @param scriptPath - Path to the Python script
+ * @param args - Arguments to pass
+ * @param ui - UI instance
+ * @returns Promise with captured output
+ */
+export async function runPythonScriptWithOutput(
+  scriptPath: string,
+  args: string[],
+  ui: UI
 ): Promise<{ success: boolean; output: string; error?: string }> {
   // Check python3 is available
   if (!checkLib("python3")) {
@@ -67,21 +125,12 @@ export async function runPythonModule(
     }
   }
 
-  // Ensure script exists
-  try {
-    await FileSystem.ReadFile(scriptPath, { absolute: true });
-  } catch {
-    return { success: false, output: "", error: `Script not found: ${scriptPath}` };
-  }
-
-  // Execute with output redirected to temp file
   const tempOutputFile = "/tmp/python_output.txt";
 
   try {
     const cmd = `python3 ${scriptPath} ${args.join(" ")} > ${tempOutputFile}`;
     await Shell.Process.exec(cmd, { absolute: true });
 
-    // Read the output from temp file
     const output = await FileSystem.ReadFile(tempOutputFile, { absolute: true });
 
     // Clean up temp file
@@ -112,39 +161,4 @@ export async function runPythonModule(
 
     return { success: false, output, error };
   }
-}
-
-/**
- * Alternative: Run Python module and parse JSON output if available
- * @param scriptPath - Absolute path to the Python script
- * @param args - Arguments to pass
- * @param ui - UI instance
- * @param options - Configuration options
- * @returns Promise with parsed data if JSON output detected
- */
-export async function runPythonModuleWithJson(
-  scriptPath: string,
-  args: string[],
-  ui: UI,
-  options?: { timeout?: number; expectJson?: boolean }
-): Promise<{ success: boolean; output: string; data?: any; error?: string }> {
-  const result = await runPythonModule(scriptPath, args, ui, options);
-
-  if (!result.success || !options?.expectJson) {
-    return result;
-  }
-
-  // Try to parse JSON from output
-  try {
-    // Look for JSON in the output (might be surrounded by other text)
-    const jsonMatch = result.output.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]);
-      return { ...result, data };
-    }
-  } catch {
-    // JSON parsing failed, return raw output
-  }
-
-  return result;
 }
