@@ -59,7 +59,8 @@ export async function run(
       continue;
     }
 
-    ui.info(`Scanning ${target}...`);
+    ui.section("SCANNER");
+    ui.info(`Target: ${target}`);
 
     try {
       const subnet = await Networking.GetSubnet(target);
