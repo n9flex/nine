@@ -31,6 +31,10 @@ export interface IPAsset {
   discoveredBy: string;
   discoveredAt: string;
   notes?: string;
+  // Extended metadata from dig/probe
+  lanIp?: string;
+  essid?: string;
+  config?: Record<string, string | boolean | number>;
 }
 
 export interface DomainAsset {
@@ -89,6 +93,11 @@ export interface NewAsset {
   type: "ip" | "domain" | "email" | "credential" | "hash" | "session";
   value: unknown;
   parent?: string;
+  // Extended metadata for IP assets (from dig/probe)
+  deviceType?: "router" | "firewall" | "printer" | "server" | "workstation" | "unknown";
+  lanIp?: string;
+  essid?: string;
+  config?: Record<string, string | boolean | number>;
 }
 
 export interface ModuleResult {

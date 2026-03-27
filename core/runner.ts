@@ -48,11 +48,14 @@ export async function executeModule(
           const ipAsset: IPAsset = {
             value: String(asset.value),
             status: "discovered",
-            deviceType: "unknown",
+            deviceType: asset.deviceType || "unknown",
             ports: [],
             parent: asset.parent,
             discoveredBy: module.meta.name,
-            discoveredAt: timestamp
+            discoveredAt: timestamp,
+            lanIp: asset.lanIp,
+            essid: asset.essid,
+            config: asset.config
           };
           mission.assets.ips.push(ipAsset);
           break;
