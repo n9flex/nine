@@ -30,8 +30,8 @@ globs:
 | `cat <file>`          | `FileSystem.ReadFile(path)`   |
 | `ls <dir>`            | `FileSystem.ReadDir(path)`    |
 | `wget / git clone`    | `HackDB.DownloadExploit()`    |
-| `dig / whois`         | `Networking.Resolve()`        |
 | `ip checking`         | `Networking.IsIp()`           |
+| `dig / whois`         | `Shell.Process.exec("dig ...")` (no native DNS API exists) |
 
 ## Writing Tone
 - **ALWAYS** write clean, pragmatic code.
