@@ -44,3 +44,12 @@ export async function deleteFile(path: string): Promise<void> {
 export async function ensureDir(path: string): Promise<void> {
   await FileSystem.Mkdir(path, { absolute: true, recursive: true });
 }
+
+export async function listDir(path: string): Promise<string[]> {
+  try {
+    const result = await FileSystem.ListDir(path, { absolute: true });
+    return result || [];
+  } catch {
+    return [];
+  }
+}

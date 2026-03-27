@@ -8,6 +8,7 @@ import { MissionManifest, ModuleResult } from "./lib/types";
 import { createManifest, loadManifest } from "./core/mission";
 import { getCurrentMission, setCurrentMission, clearCurrentMission } from "./core/session";
 import { executeModule } from "./core/runner";
+import { listDir } from "./lib/storage";
 
 // ============================================================================
 // SECTION: Module Imports (Reconnaissance Modules - M2)
@@ -65,6 +66,18 @@ export async function main(args?: string[], scriptLocation?: string): Promise<vo
       break;
     case "status":
       await handleStatus(cwdAbsolute, ui);
+      break;
+    case "assets":
+      await handleAssets(cwdAbsolute, ui);
+      break;
+    case "history":
+      await handleHistory(cwdAbsolute, ui);
+      break;
+    case "show":
+      await handleShow(cwdAbsolute, ui);
+      break;
+    case "list":
+      await handleList(cwdAbsolute, ui);
       break;
     case "scan":
     case "-s":
@@ -191,6 +204,184 @@ async function handleStatus(cwdAbsolute: string, ui: UI): Promise<void> {
   }
 }
 
+async function handleAssets(cwdAbsolute: string, ui: UI): Promise<void> {
+  try {
+    const session = await getCurrentMission(cwdAbsolute);
+    if (!session) {
+      ui.warn("No mission attached");
+      ui.info("Run: nine attach <mission>");
+      return;
+    }
+
+    const manifest = await loadManifest(session.mission, cwdAbsolute);
+    if (!manifest) {
+      ui.error(`Mission not found: ${session.mission}`);
+      return;
+    }
+
+    if (manifest.seeds.length > 0) {
+      ui.section("Seeds");
+      ui.table(["Type", "Value", "Added"], manifest.seeds.map(s => ({
+        Type: s.type,
+        Value: s.value,
+        Added: new Date(s.addedAt).toLocaleDateString()
+      })));
+    }
+
+    if (manifest.assets.ips.length > 0) {
+      ui.section("IP Addresses");
+      ui.table(["IP", "Status", "Discovered By", "Ports"], manifest.assets.ips.map(ip => ({
+        IP: ip.value,
+        Status: ip.status,
+        "Discovered By": ip.discoveredBy,
+        Ports: String(ip.ports.length)
+      })));
+    }
+
+    if (manifest.assets.domains.length > 0) {
+      ui.section("Domains");
+      ui.table(["Domain", "Source", "Parent"], manifest.assets.domains.map(d => ({
+        Domain: d.value,
+        Source: d.source,
+        Parent: d.parent || "-"
+      })));
+    }
+
+    if (manifest.assets.credentials.length > 0) {
+      ui.section("Credentials");
+      ui.table(["User", "Password", "Source"], manifest.assets.credentials.map(c => ({
+        User: c.user,
+        Password: "***",
+        Source: c.source
+      })));
+    }
+
+    if (manifest.assets.ips.length === 0 && manifest.assets.domains.length === 0 && 
+        manifest.assets.credentials.length === 0 && manifest.seeds.length === 0) {
+      ui.info("No assets discovered yet");
+    }
+  } catch (err) {
+    ui.error(`Failed to get assets: ${err}`);
+  }
+}
+
+async function handleHistory(cwdAbsolute: string, ui: UI): Promise<void> {
+  try {
+    const session = await getCurrentMission(cwdAbsolute);
+    if (!session) {
+      ui.warn("No mission attached");
+      ui.info("Run: nine attach <mission>");
+      return;
+    }
+
+    const manifest = await loadManifest(session.mission, cwdAbsolute);
+    if (!manifest) {
+      ui.error(`Mission not found: ${session.mission}`);
+      return;
+    }
+
+    if (manifest.history.length === 0) {
+      ui.info("No history entries");
+      return;
+    }
+
+    ui.section("Execution History");
+    ui.table(["Time", "Module", "Target", "Result", "Action"], 
+      manifest.history.slice(-20).map(h => ({
+        Time: new Date(h.timestamp).toLocaleTimeString(),
+        Module: h.module,
+        Target: h.target || "-",
+        Result: h.result,
+        Action: h.action
+      }))
+    );
+
+    if (manifest.history.length > 20) {
+      ui.info(`... and ${manifest.history.length - 20} more entries`);
+    }
+  } catch (err) {
+    ui.error(`Failed to get history: ${err}`);
+  }
+}
+
+async function handleShow(cwdAbsolute: string, ui: UI): Promise<void> {
+  try {
+    const session = await getCurrentMission(cwdAbsolute);
+    if (!session) {
+      ui.warn("No mission attached");
+      ui.info("Run: nine attach <mission>");
+      return;
+    }
+
+    const manifest = await loadManifest(session.mission, cwdAbsolute);
+    if (!manifest) {
+      ui.error(`Mission not found: ${session.mission}`);
+      return;
+    }
+
+    ui.section("Mission Overview");
+    ui.print("Mission", manifest.name);
+    ui.print("Created", new Date(manifest.created).toLocaleString());
+    ui.print("Updated", new Date(manifest.updated).toLocaleString());
+
+    ui.section("Summary");
+    ui.print("Seeds", String(manifest.seeds.length));
+    ui.print("IPs", String(manifest.assets.ips.length));
+    ui.print("Domains", String(manifest.assets.domains.length));
+    ui.print("Credentials", String(manifest.assets.credentials.length));
+    ui.print("History", String(manifest.history.length));
+
+    await handleAssets(cwdAbsolute, ui);
+    await handleHistory(cwdAbsolute, ui);
+  } catch (err) {
+    ui.error(`Failed to show mission: ${err}`);
+  }
+}
+
+async function handleList(cwdAbsolute: string, ui: UI): Promise<void> {
+  try {
+    const missionsDir = `${cwdAbsolute}/loot`;
+    const entries = await listDir(missionsDir);
+    
+    if (entries.length === 0) {
+      ui.info("No missions found");
+      ui.info("Run: nine create <mission> to create your first mission");
+      return;
+    }
+
+    const missions: Array<{ name: string; created: string; assets: number }> = [];
+    
+    for (const entry of entries) {
+      // Skip the .current_mission file and any non-directory entries
+      if (entry === ".current_mission" || entry.includes(".")) {
+        continue;
+      }
+      
+      const manifest = await loadManifest(entry, cwdAbsolute);
+      if (manifest) {
+        const totalAssets = manifest.assets.ips.length + 
+                          manifest.assets.domains.length + 
+                          manifest.assets.credentials.length;
+        missions.push({
+          name: manifest.name,
+          created: new Date(manifest.created).toLocaleDateString(),
+          assets: totalAssets
+        });
+      }
+    }
+
+    if (missions.length === 0) {
+      ui.info("No valid missions found");
+      return;
+    }
+
+    ui.section("Missions");
+    ui.table(["Name", "Created", "Assets"], missions);
+  } catch (err) {
+    ui.error(`Failed to list missions: ${err}`);
+  }
+}
+
 async function handleModule(moduleName: string, args: string[], cwdAbsolute: string, ui: UI): Promise<void> {
   // Check if attached to a mission
   const session = await getCurrentMission(cwdAbsolute);
@@ -245,10 +436,14 @@ function showHelp(ui: UI): void {
   ui.print("Usage", "nine <command> [args...]");
   ui.divider();
   ui.print("Mission Commands", "");
+  ui.print("  list", "List all missions");
   ui.print("  create", "Create new mission with optional seeds");
   ui.print("  attach", "Attach to existing or new mission");
   ui.print("  detach", "Detach from current mission");
   ui.print("  status", "Show current mission status");
+  ui.print("  assets", "List all discovered assets");
+  ui.print("  history", "Show execution history");
+  ui.print("  show", "Full mission details");
   ui.divider();
   ui.print("Module Commands", "");
   ui.print("  scan", "Port scanning on targets");
@@ -266,5 +461,4 @@ function showHelp(ui: UI): void {
 // ============================================================================
 // SECTION: Entry Point
 // ============================================================================
-
 // main() is called by the wrapper at /lib/nine.ts
