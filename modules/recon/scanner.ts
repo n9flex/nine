@@ -4,6 +4,7 @@
 // ============================================================================
 import { UI } from "../../lib/ui";
 import { MissionManifest, ModuleResult, PortInfo } from "../../lib/types";
+import { COLOR_PALETTE } from "../../lib/ui";
 
 // ============================================================================
 // SECTION 2: Module Metadata
@@ -20,6 +21,18 @@ export const meta = {
 // ============================================================================
 // SECTION 3: Helper Functions
 // ============================================================================
+
+function getStatusColor(state: string, forwarded?: boolean): string {
+  if (!state || state === "closed") return COLOR_PALETTE.red;
+  if (forwarded) return COLOR_PALETTE.orange;
+  return COLOR_PALETTE.green;
+}
+
+function getStatusText(state: string, forwarded?: boolean): string {
+  if (!state || state === "closed") return "CLOSED";
+  if (forwarded) return "FORWARDED";
+  return "OPEN";
+}
 
 /**
  * Resolves target IPs from args or mission assets
@@ -81,12 +94,14 @@ export async function run(
         ]);
 
         if (portData) {
+          const isForwarded = isOpen && portData.external !== portData.internal;
           ports.push({
             port,
             state: isOpen ? "open" : "closed",
             service: portData.service,
             version: portData.version,
-            forwarded: portData.external !== portData.internal ? {
+            target: portData.target,  // Store target for all ports
+            forwarded: isForwarded ? {
               externalPort: portData.external,
               internalPort: portData.internal,
               targetIp: portData.target,
@@ -113,7 +128,33 @@ export async function run(
       }
 
       const openPorts = ports.filter(p => p.state === "open");
+      const forwardedPorts = ports.filter(p => p.state === "open" && p.forwarded);
+      const closedPorts = ports.filter(p => p.state === "closed");
+
+      ui.divider();
+      ui.info(`Total: ${ports.length} | Open: ${openPorts.length} | Forwarded: ${forwardedPorts.length} | Closed: ${closedPorts.length}`);
+
+      // Display port table
+      if (ports.length > 0) {
+        ui.divider();
+        const portRows = ports.map(p => ({
+          Status: getStatusText(p.state, p.forwarded),
+          Port: p.port,
+          Service: p.service || "unknown",
+          Version: p.version || "unknown",
+          Target: p.target || "N/A",
+          Internal: p.forwarded?.internalPort || "N/A"
+        }));
+        ui.table(["Status", "Port", "Service", "Version", "Target", "Internal"], portRows, {
+          rowColor: (row) => getStatusColor(row.Status as string, row.Status === "FORWARDED")
+        });
+      }
+
+      ui.divider();
       ui.success(`Found ${openPorts.length} open ports on ${target}`);
+      if (forwardedPorts.length > 0) {
+        ui.warn(`${forwardedPorts.length} forwarded ports detected`);
+      }
 
       allResults.push({ target, ports });
     } catch (err) {

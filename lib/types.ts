@@ -8,6 +8,7 @@ export interface PortInfo {
   state: "open" | "closed" | "filtered" | "forwarded";
   service: string;
   version?: string;
+  target: string;  // Target IP (LAN IP or forwarded destination)
   forwarded?: {
     externalPort: number;
     internalPort: number;
