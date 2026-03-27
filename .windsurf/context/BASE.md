@@ -155,6 +155,11 @@ ui.table(["Col1", "Col2"], rows);
 - Constants: UPPER_SNAKE_CASE
 - Types: PascalCase with descriptive names
 
+### 6. No Mock Data in Real Modules
+- **NEVER** use mock data, fake responses, or hardcoded examples
+- **NEVER** include sample/test data in production modules
+- **ALWAYS** process only actual mission data from manifest.assets
+
 ---
 
 ## HackHub API Essentials

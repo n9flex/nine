@@ -37,3 +37,8 @@ globs:
 - **ALWAYS** write clean, pragmatic code.
 - **ALWAYS** handle errors directly.
 - **NEVER** use empty `catch {}` blocks just to force execution.
+
+## Mock Data Prohibition
+- **NEVER** use mock data, fake responses, or hardcoded examples in real modules
+- **NEVER** include sample/test data in production modules
+- **ALWAYS** process only actual mission data from manifest.assets
