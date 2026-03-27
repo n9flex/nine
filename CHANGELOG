@@ -1,3 +1,10 @@
+**v0.2.1**
+- Add versionning to nine.ts
+- Add list, history, assets, show mission to nine.ts
+- Adjust rules to never use mock data in real module
+- Fix nine list to return properly the mission
+
+
 **v0.2.0**
 - Fix: Scanner now properly creates IP assets for scanned targets (visible in nine status)
 - Fix: Nettree module fixed Python script detection using ReadDir (stops re-downloading)
