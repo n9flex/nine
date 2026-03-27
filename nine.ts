@@ -348,41 +348,46 @@ async function handleList(cwdAbsolute: string, ui: UI): Promise<void> {
   try {
     const missionsDir = `${cwdAbsolute}/loot`;
     const entries = await listDir(missionsDir);
-    
-    if (entries.length === 0) {
-      ui.info("No missions found");
-      ui.info("Run: nine create <mission> to create your first mission");
-      return;
-    }
 
-    const missions: Array<{ name: string; created: string; assets: number }> = [];
-    
+    const missions: Array<{ Name: string; Created: string; Assets: number }> = [];
+
     for (const entry of entries) {
-      // Skip the .current_mission file and any non-directory entries
-      if (entry === ".current_mission" || entry.includes(".")) {
+      // Skip hidden files (like .current_mission)
+      if (entry.startsWith(".")) {
         continue;
       }
-      
+
       const manifest = await loadManifest(entry, cwdAbsolute);
       if (manifest) {
-        const totalAssets = manifest.assets.ips.length + 
-                          manifest.assets.domains.length + 
+        const totalAssets = manifest.assets.ips.length +
+                          manifest.assets.domains.length +
                           manifest.assets.credentials.length;
         missions.push({
-          name: manifest.name,
-          created: new Date(manifest.created).toLocaleDateString(),
-          assets: totalAssets
+          Name: manifest.name,
+          Created: new Date(manifest.created).toLocaleDateString(),
+          Assets: totalAssets
         });
       }
     }
 
     if (missions.length === 0) {
-      ui.info("No valid missions found");
+      ui.info("No missions found");
+      ui.info("Run: nine create <mission> to create your first mission");
       return;
     }
 
     ui.section("Missions");
     ui.table(["Name", "Created", "Assets"], missions);
+
+    // Show current attachment status
+    const session = await getCurrentMission(cwdAbsolute);
+    ui.divider();
+    if (session) {
+      ui.print("Currently attached to", session.mission);
+    } else {
+      ui.info("No mission currently attached");
+    }
+    ui.divider();
   } catch (err) {
     ui.error(`Failed to list missions: ${err}`);
   }

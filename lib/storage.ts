@@ -47,8 +47,9 @@ export async function ensureDir(path: string): Promise<void> {
 
 export async function listDir(path: string): Promise<string[]> {
   try {
-    const result = await FileSystem.ListDir(path, { absolute: true });
-    return result || [];
+    // Use ReadDir pattern (like python.ts) - returns objects with .name
+    const files = await FileSystem.ReadDir(path, { absolute: true });
+    return files.map(f => f.name);
   } catch {
     return [];
   }
