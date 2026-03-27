@@ -1,3 +1,11 @@
+**v0.2.0**
+- Fix: Scanner now properly creates IP assets for scanned targets (visible in nine status)
+- Fix: Nettree module fixed Python script detection using ReadDir (stops re-downloading)
+- Fix: Nettree color display using println with COLOR_PALETTE
+- Refactor: Extract Python helper to lib/python.ts with ReadDir detection pattern
+- Fix: Scanner wasn't logging scanned IP
+- Fix: Nettree module wasn't downloading python module.
+
 **v0.1.3**
 - Update nine to match milestone 2
 - Integrate recon modules: dig, geoip, nettree, scanner

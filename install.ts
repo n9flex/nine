@@ -9,7 +9,7 @@ import { UI, COLOR_PALETTE } from "./lib/ui";
 // SECTION: Constants
 // ============================================================================
 
-const VERSION = "0.1.3";
+const VERSION = "0.2.0";
 const ui = UI.ctx();
 const LIB_DIR = "/lib";
 const NINE_WRAPPER = `${LIB_DIR}/nine.ts`;
