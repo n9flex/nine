@@ -11,6 +11,12 @@ import { executeModule } from "./core/runner";
 import { listDir } from "./lib/storage";
 
 // ============================================================================
+// SECTION: Constants
+// ============================================================================
+
+const VERSION = "0.2.0";
+
+// ============================================================================
 // SECTION: Module Imports (Reconnaissance Modules - M2)
 // ============================================================================
 
@@ -432,6 +438,7 @@ function centerText(text: string, width: number = 60): string {
 function showHelp(ui: UI): void {
   println([{ text: "─".repeat(60), color: COLOR_PALETTE.gray }]);
   println([{ text: centerText("Nine CLI Toolkit"), color: COLOR_PALETTE.purple }]);
+  println([{ text: centerText(`v${VERSION}`), color: COLOR_PALETTE.pink }]);
   println([{ text: "─".repeat(60), color: COLOR_PALETTE.gray }]);
   ui.print("Usage", "nine <command> [args...]");
   ui.divider();
