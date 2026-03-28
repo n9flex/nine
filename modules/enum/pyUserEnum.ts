@@ -4,6 +4,7 @@
 // ============================================================================
 import { UI, COLOR_PALETTE } from "../../lib/ui";
 import { MissionManifest, ModuleResult } from "../../lib/types";
+import { ensurePythonScript } from "../../lib/python";
 
 // ============================================================================
 // SECTION 2: Module Metadata
@@ -35,7 +36,8 @@ export async function run(
   }
 
   // Validate target IS an IP
-  if (!Networking.IsIp(target)) {
+  const ipPattern = /^(?:\d{1,3}\.){3}\d{1,3}$/;
+  if (!ipPattern.test(target)) {
     ui.error(`pyUserEnum requires an IP address: ${target}`);
     return { success: false, data: { error: "Invalid target type" } };
   }
@@ -53,34 +55,34 @@ export async function run(
   }
 
   // Download pyUserEnum.py if needed
-  const cwd = await FileSystem.cwd();
-  const scriptPath = `${cwd.absolutePath}/downloads/pyUserEnum.py`;
-
-  if (!(await fileExists(scriptPath, true))) {
-    ui.info("Downloading pyUserEnum.py from HackDB...");
-    try {
-      await HackDB.DownloadExploit("pyUserEnum.py", "downloads");
-    } catch {
-      // Silent fallback - will use mock data
-    }
+  const scriptPath = await ensurePythonScript("pyUserEnum.py", "./python", ui);
+  if (!scriptPath) {
+    ui.error("Failed to download pyUserEnum.py from HackDB");
+    return { success: false, data: { error: "Script download failed" } };
   }
 
-  // Execute pyUserEnum
+  // Execute pyUserEnum - output is displayed interactively
+  ui.divider();
+  try {
+    await Shell.Process.exec(`python3 ${scriptPath} ${target}`);
+  } catch (e) {
+    ui.error(`Execution error: ${e}`);
+  }
+  ui.divider();
+
+  // Interactive prompt for discovered users (output cannot be captured programmatically)
+  ui.info("Enter discovered username(s), comma-separated, or 'skip':");
+  println([{ text: "  Example: admin, root, building", color: COLOR_PALETTE.gray }]);
+
+  const input = await prompt("Users: ");
   let users: string[] = [];
 
-  try {
-    const output = await Shell.Process.exec(`python3 ${scriptPath} ${target}`, { absolute: true });
-
-    // Parse users from output
-    const userRegex = /User:\s*(\w+)/g;
-    users = [...output.matchAll(userRegex)].map((m) => m[1]);
-  } catch {
-    // Silent fallback to mock users
+  if (input && input.toLowerCase() !== "skip") {
+    users = input.split(",").map(u => u.trim()).filter(u => u.length > 0);
   }
 
-  // Fallback to mock users
   if (users.length === 0) {
-    users = ["admin", "root", "user", "guest", "test"];
+    ui.warn("No users found on target");
   }
 
   ui.success(`Found ${users.length} user(s) on ${target}`);
@@ -102,15 +104,6 @@ export async function run(
 function resolveIpTarget(mission: MissionManifest, args?: string[]): string | null {
   if (args && args.length > 0) return args[0];
   return mission.assets.ips.find((ip) => ip.status === "discovered")?.value || null;
-}
-
-async function fileExists(path: string, absolute = false): Promise<boolean> {
-  try {
-    await FileSystem.ReadFile(path, { absolute });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 // ============================================================================
