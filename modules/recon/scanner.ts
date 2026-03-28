@@ -73,7 +73,7 @@ export async function run(
     }
 
     ui.section("SCANNER");
-    ui.info(`Target: ${target}`);
+    ui.print("Target", target, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.pink });
 
     try {
       const subnet = await Networking.GetSubnet(target);
@@ -83,6 +83,8 @@ export async function run(
       }
 
       const portNumbers = await subnet.GetPorts();
+      
+      ui.divider();
       ui.info(`Found ${portNumbers.length} ports to check`);
 
       const ports: PortInfo[] = [];
