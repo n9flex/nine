@@ -43,17 +43,24 @@ export async function run(
     await installLib("dirhunter");
   }
 
-  // Execute dirhunter - use temp file to capture output
-  const tempFile = ".dirhunter_output.txt";
+  // Execute dirhunter - use tmp file to capture output
+  const tempFile = "./tmp/dirhunter_output.txt";
   let directories: string[] = [];
+
+  // Ensure temp directory exists
+  try {
+    await FileSystem.Mkdir("./tmp", { absolute: false });
+  } catch {
+    // Directory might already exist
+  }
 
   try {
     await Shell.Process.exec(`dirhunter ${target} > ${tempFile}`);
     const output = await FileSystem.ReadFile(tempFile, { absolute: false });
-    
+
     // Cleanup
     try {
-      await FileSystem.Remove(tempFile, { absolute: true });
+      await FileSystem.Remove(tempFile, { absolute: false });
     } catch {
       // Ignore cleanup errors
     }
@@ -68,7 +75,7 @@ export async function run(
   } catch {
     // Silent fallback
     try {
-      await FileSystem.Remove(tempFile, { absolute: true });
+      await FileSystem.Remove(tempFile, { absolute: false });
     } catch {
       // Ignore cleanup errors
     }
