@@ -1,3 +1,9 @@
+**v0.3.1**
+- Move subfinder to enum dir
+- Fix nslookup parsing, improve ui
+- Fix pyUserEnum: use interactive mode (output capture incompatible with script)
+- Fix dirhunter: move temp file to ./tmp/ directory
+
 **v0.3.0**
 - Implement Milestone 3: Enumeration modules
 - Add nslookup module: NS record lookup with deterministic IP fallback
