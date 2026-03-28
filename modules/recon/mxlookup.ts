@@ -48,35 +48,123 @@ export async function run(
     await installLib("mxlookup");
   }
 
-  // Execute mxlookup
+  // Execute mxlookup with temp file (like nslookup)
+  const tempFile = ".mxlookup_output.txt";
   let output = "";
+  
   try {
-    output = await Shell.Process.exec(`mxlookup ${target}`, { absolute: true });
-  } catch {
-    // Silent fallback
+    await Shell.Process.exec(`mxlookup ${target} > ${tempFile}`);
+    output = await FileSystem.ReadFile(tempFile, { absolute: false });
+    
+    // Cleanup
+    try {
+      await FileSystem.Remove(tempFile, { absolute: false });
+    } catch {
+      // Ignore cleanup errors
+    }
+  } catch (err) {
+    ui.error(`mxlookup error: ${err}`);
+    // Cleanup on error
+    try {
+      await FileSystem.Remove(tempFile, { absolute: false });
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 
-  // Parse or mock MX records
-  const mxRecords = output.includes("MX")
-    ? [{ priority: 10, server: `mail.${target}` }]
-    : [
-        { priority: 10, server: `mail.${target}` },
-        { priority: 20, server: `mail2.${target}` },
-      ];
+  // Parse MX records from output
+  let mxRecords: Array<{ priority: number; server: string; host?: string }> = [];
+  
+  if (output) {
+    // Check for "No MX" message
+    if (output.includes("No MX") || output.includes("no MX") || output.includes("Not found")) {
+      ui.warn(`No MX records found for ${target}`);
+      return {
+        success: false,
+        data: { domain: target, mailServers: [], error: "No MX records found" },
+        newAssets: [],
+      };
+    }
+    
+    // Parse format: "Mail Server:\tserver\nHost:\tip" (with tabs)
+    // OR multi-line format
+    const lines = output.split("\n");
+    
+    for (const line of lines) {
+      // Tab-separated: "Mail Server:\tnovaenergy.com"
+      const tabMatch = line.match(/^Mail Server[:\s\t]+(\S+)/i);
+      if (tabMatch) {
+        const server = tabMatch[1];
+        let host: string | undefined;
+        
+        // Look for Host on same or next line
+        const hostLine = lines.find(l => l.match(/^Host[:\s\t]+(\S+)/i));
+        if (hostLine) {
+          const hostMatch = hostLine.match(/^Host[:\s\t]+(\S+)/i);
+          if (hostMatch) host = hostMatch[1];
+        }
+        
+        // Default priority to 10 when not specified by mxlookup command
+        // In MX records, priority determines preference (lower = preferred)
+        // Standard fallback when command doesn't provide real priority values
+        mxRecords.push({
+          priority: 10,
+          server: server,
+          host: host
+        });
+      }
+    }
+    
+    // Also try standard MX format as fallback: "Priority X: server" or "X server"
+    if (mxRecords.length === 0) {
+      for (const line of lines) {
+        const match = line.match(/(?:Priority\s+)?(\d+)[:\s]+(\S+)/);
+        if (match && !mxRecords.find(r => r.server === match[2])) {
+          mxRecords.push({
+            priority: parseInt(match[1], 10),
+            server: match[2]
+          });
+        }
+      }
+    }
+  }
+  
+  // If still no records found, return empty
+  if (mxRecords.length === 0) {
+    ui.warn(`No MX records found for ${target}`);
+    return {
+      success: false,
+      data: { domain: target, mailServers: [], error: "No MX records found" },
+      newAssets: [],
+    };
+  }
 
   ui.success(`Found ${mxRecords.length} MX record(s) for ${target}`);
 
   for (const mx of mxRecords) {
-    ui.print(`  Priority ${mx.priority}`, mx.server, {
+    ui.print(`  Mail Server`, mx.server, {
       label: COLOR_PALETTE.white,
       value: COLOR_PALETTE.cyan,
     });
+    if (mx.host) {
+      ui.print(`    Host`, mx.host, {
+        label: COLOR_PALETTE.gray,
+        value: COLOR_PALETTE.purple,
+      });
+    }
   }
+
+  // Build newAssets for mail servers (as domain assets)
+  const newAssets = mxRecords.map(mx => ({
+    type: "domain" as const,
+    value: mx.server,
+    parent: target,
+  }));
 
   return {
     success: true,
     data: { domain: target, mailServers: mxRecords },
-    newAssets: [],
+    newAssets,
   };
 }
 
