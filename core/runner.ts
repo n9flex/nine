@@ -53,7 +53,7 @@ export async function executeModule(
             value: String(asset.value),
             status: "discovered",
             deviceType: asset.deviceType || "unknown",
-            ports: [],
+            ports: asset.ports || [],
             parent: asset.parent,
             discoveredBy: module.meta.name,
             discoveredAt: timestamp,

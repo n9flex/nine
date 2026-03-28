@@ -277,12 +277,31 @@ async function handleAssets(cwdAbsolute: string, ui: UI): Promise<void> {
 
     if (manifest.assets.ips.length > 0) {
       ui.section("IP Addresses");
-      ui.table(["IP", "Status", "Discovered By", "Ports"], manifest.assets.ips.map(ip => ({
+      ui.table(["IP", "Status", "Discovered By"], manifest.assets.ips.map(ip => ({
         IP: ip.value,
         Status: ip.status,
-        "Discovered By": ip.discoveredBy,
-        Ports: String(ip.ports.length)
+        "Discovered By": ip.discoveredBy
       })));
+
+      // Show detailed port information for scanned IPs
+      const scannedIps = manifest.assets.ips.filter(ip => ip.ports.length > 0);
+      if (scannedIps.length > 0) {
+        ui.section("PORTS DETAILS");
+        for (const ip of scannedIps) {
+          const openPorts = ip.ports.filter(p => p.state === "open");
+          if (openPorts.length > 0) {
+            ui.print(`${ip.value}`, "", { label: COLOR_PALETTE.white });
+            const portRows = openPorts.map(p => ({
+              Port: p.port,
+              State: p.state.toUpperCase(),
+              Service: p.service || "unknown",
+              Version: p.version || "unknown",
+              Target: p.target || "N/A"
+            }));
+            ui.table(["Port", "State", "Service", "Version", "Target"], portRows);
+          }
+        }
+      }
     }
 
     if (manifest.assets.domains.length > 0) {

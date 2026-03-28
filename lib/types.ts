@@ -99,6 +99,8 @@ export interface NewAsset {
   lanIp?: string;
   essid?: string;
   config?: Record<string, string | boolean | number>;
+  // Port scan results
+  ports?: PortInfo[];
 }
 
 export interface ModuleResult {
