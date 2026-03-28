@@ -1,3 +1,6 @@
+**v0.2.2**
+- Add test for milestone-3
+
 **v0.2.1**
 - Add versionning to nine.ts
 - Add list, history, assets, show mission to nine.ts
