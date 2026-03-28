@@ -48,9 +48,16 @@ export async function run(
     await installLib("mxlookup");
   }
 
-  // Execute mxlookup with temp file (like nslookup)
-  const tempFile = ".mxlookup_output.txt";
+  // Execute mxlookup with temp file (like dirhunter)
+  const tempFile = "./tmp/mxlookup_output.txt";
   let output = "";
+  
+  // Ensure temp directory exists
+  try {
+    await FileSystem.Mkdir("./tmp", { absolute: false });
+  } catch {
+    // Directory might already exist
+  }
   
   try {
     await Shell.Process.exec(`mxlookup ${target} > ${tempFile}`);

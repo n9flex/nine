@@ -114,7 +114,14 @@ function parseDigOutput(output: string, targetIp: string): DigResult | null {
  * Executes dig command and parses output
  */
 async function performDigLookup(target: string): Promise<DigResult | null> {
-  const tempFile = ".dig_output.txt";
+  const tempFile = "./tmp/dig_output.txt";
+
+  // Ensure temp directory exists
+  try {
+    await FileSystem.Mkdir("./tmp", { absolute: false });
+  } catch {
+    // Directory might already exist
+  }
 
   try {
     await Shell.Process.exec(`dig ${target} > ${tempFile}`);

@@ -43,9 +43,16 @@ export async function run(
   ui.section("NSLOOKUP");
   ui.print("Target", target, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.pink });
 
-  // Try nslookup command - use temp file pattern like dig.ts
-  const tempFile = ".nslookup_output.txt";
+  // Try nslookup command - use temp file pattern like dirhunter
+  const tempFile = "./tmp/nslookup_output.txt";
   let resolvedIp: string | null = null;
+
+  // Ensure temp directory exists
+  try {
+    await FileSystem.Mkdir("./tmp", { absolute: false });
+  } catch {
+    // Directory might already exist
+  }
 
   try {
     // Execute nslookup and redirect to temp file
