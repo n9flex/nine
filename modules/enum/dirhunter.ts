@@ -34,8 +34,9 @@ export async function run(
     return { success: false, data: { error: "No target" } };
   }
 
-  ui.info(`Running directory bruteforce on ${target}...`);
-  ui.info("This may take a while...");
+  // Header
+  ui.section("DIRECTORY HUNTER");
+  ui.print("Target", target, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.pink });
 
   // Check/install dirhunter
   if (!checkLib("dirhunter")) {
@@ -81,16 +82,23 @@ export async function run(
     }
   }
 
+  ui.divider();
+
   if (directories.length === 0) {
     ui.warn(`No directories found on ${target}`);
   } else {
-    ui.success(`Found ${directories.length} directorie(s) on ${target}`);
+    ui.info(`Found ${directories.length} directorie(s) on ${target}`);
+    ui.divider();
+
+    // Display directories
+    for (const dir of directories.slice(0, 10)) {
+      ui.print("Path", dir, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.green });
+    }
+
+    ui.divider();
   }
 
-  // Display first 5 directories
-  for (const dir of directories.slice(0, 5)) {
-    ui.print("  Path", dir, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.green });
-  }
+  ui.success(`Found ${directories.length} directorie(s) on ${target}`);
 
   return {
     success: true,

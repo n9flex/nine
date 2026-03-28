@@ -42,7 +42,9 @@ export async function run(
     return { success: false, data: { error: "Invalid target type" } };
   }
 
-  ui.info(`Running user enumeration on ${target}...`);
+  // Header
+  ui.section("USER ENUMERATION");
+  ui.print("Target", target, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.pink });
 
   // Check/install python3
   if (!checkLib("python3")) {
@@ -62,12 +64,12 @@ export async function run(
   }
 
   // Execute pyUserEnum - output is displayed interactively
-  ui.divider();
   try {
     await Shell.Process.exec(`python3 ${scriptPath} ${target}`);
   } catch (e) {
     ui.error(`Execution error: ${e}`);
   }
+
   ui.divider();
 
   // Interactive prompt for discovered users (output cannot be captured programmatically)
@@ -81,15 +83,22 @@ export async function run(
     users = input.split(",").map(u => u.trim()).filter(u => u.length > 0);
   }
 
+  ui.divider();
+
   if (users.length === 0) {
     ui.warn("No users found on target");
+  } else {
+    // Results table
+    ui.info(`Found ${users.length} user(s) on ${target}`);
+    ui.divider();
+
+    // Build table rows
+    const userRows = users.map(u => ({ Username: u }));
+    ui.table(["Username"], userRows);
+    ui.divider();
   }
 
   ui.success(`Found ${users.length} user(s) on ${target}`);
-
-  for (const user of users.slice(0, 5)) {
-    ui.print("  User", user, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.cyan });
-  }
 
   return {
     success: true,
