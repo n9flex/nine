@@ -26,13 +26,13 @@ import * as geoip from "./modules/recon/geoip";
 import * as dig from "./modules/recon/dig";
 import * as nslookup from "./modules/recon/nslookup";
 import * as mxlookup from "./modules/recon/mxlookup";
-import * as subfinder from "./modules/recon/subfinder";
 import * as lynx from "./modules/recon/lynx";
 
 // ============================================================================
 // SECTION: Module Imports (Enumeration Modules - M3)
 // ============================================================================
 
+import * as subfinder from "./modules/enum/subfinder";
 import * as pyUserEnum from "./modules/enum/pyUserEnum";
 import * as dirhunter from "./modules/enum/dirhunter";
 
