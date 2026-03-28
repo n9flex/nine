@@ -1,3 +1,13 @@
+**v0.3.0**
+- Implement Milestone 3: Enumeration modules
+- Add nslookup module: NS record lookup with deterministic IP fallback
+- Add mxlookup module: MX record lookup for mail servers
+- Add subfinder module: Subdomain enumeration with parent tracking
+- Add lynx module: OSINT harvest for emails, IPs, and social handles
+- Add pyUserEnum module: User enumeration via Python script wrapper
+- Add dirhunter module: Directory bruteforce for web servers
+- Update nine.ts with M3 module registry and command handlers
+
 **v0.2.2**
 - Add test for milestone-3
 
@@ -6,7 +16,6 @@
 - Add list, history, assets, show mission to nine.ts
 - Adjust rules to never use mock data in real module
 - Fix nine list to return properly the mission
-
 
 **v0.2.0**
 - Fix: Scanner now properly creates IP assets for scanned targets (visible in nine status)
@@ -32,7 +41,6 @@
 - Enhance nine ui
 
 **v0.1.0**
-
 - Mission-centric architecture refacto
 - Core system: mission.ts, runner.ts, session.ts
 - Mission commands: create, attach, detach, status
@@ -41,12 +49,10 @@
 - Storage abstraction layer
 
 **v0.0.2**
-
 - Fix netree module import issues
 - Nine can now use -nt or --netree
 
 **v0.0.1**
-
 - Initial release
 - IP scanner with subnet resolution
 - Port status detection (open/forwarded/closed)
