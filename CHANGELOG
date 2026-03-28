@@ -1,3 +1,14 @@
+**v0.3.2**
+- Improve pyUserEnum and dirhunter ui
+- Fix pyEnumUser wasn't logging assets
+- Fix pyUserEnum: scan all discovered IPs (not just first one)
+- Fix runner: credential deduplication was broken (String(object) = "[object Object]")
+- Fix runner: dedupe generic "pyUserEnum" source when specific "pyUserEnum on <ip>" exists
+- Fix types: add ports field to NewAsset interface
+- Fix runner: persist scanner ports in IP assets
+- Fix nine show: add PORTS DETAILS section with port/service/version display
+- Fix ui issues
+
 **v0.3.1**
 - Move subfinder to enum dir
 - Fix nslookup parsing, improve ui
