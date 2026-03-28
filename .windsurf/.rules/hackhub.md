@@ -5,38 +5,71 @@ globs:
   - "**/*.ts"
 ---
 
-# HackHub Core Principles
+# HackHub API Rules
 
-## Environment & Syntax
-- **ALWAYS** write standard **TypeScript**.
-- **ALWAYS** target the HackHub native API environment (global objects).
-- **NEVER** use standard Node.js modules (like `fs`, `path`, `child_process`).
-- **NEVER** keep cosmetic `sleep()` calls or fake loading screens.
-- **ALWAYS** add `// @ts-nocheck` at the beginning of files using HackHub internal APIs to avoid lint errors.
+Core principles for HackHub TypeScript scripting environment.
 
-## The "No Fake Bash" Rule
-- **NEVER** use `Shell.Process.exec()`, `safeExec()`, or any bash command wrapper (e.g., `whois`, `dig`, `python3`, `nmap`).
-- **ALWAYS** map OSINT and hacking actions to native HackHub API objects.
+## Required File Header
 
-## No Hallucination Rule
-- **NEVER** invent or guess HackHub API classes, methods, or properties.
-- **NEVER** assume standard library functions exist in the game.
-- **ALWAYS** stop and write **"API UNKNOWN"** if you lack the exact syntax.
-- **ALWAYS** ask the user to search the game's code or documentation to provide the missing API function.
+**ALWAYS** add `// @ts-nocheck` at the beginning of files using HackHub internal APIs to avoid lint errors:
 
-## API Refactoring Mapping
-| Fake Terminal Command | Native HackHub API Equivalent |
-|-----------------------|-------------------------------|
-| `cat <file>`          | `FileSystem.ReadFile(path)`   |
-| `ls <dir>`            | `FileSystem.ReadDir(path)`    |
-| `wget / git clone`    | `HackDB.DownloadExploit()`    |
-| `ip checking`         | `Networking.IsIp()`           |
-| `dig / whois`         | `Shell.Process.exec("dig ...")` (no native DNS API exists) |
+```typescript
+// @ts-nocheck
+import { UI } from "../../lib/ui";
+```
 
-## Writing Tone
-- **ALWAYS** write clean, pragmatic code.
-- **ALWAYS** handle errors directly.
-- **NEVER** use empty `catch {}` blocks just to force execution.
+## Environment
+
+- Native TypeScript with game-provided globals
+- No standard Node.js modules (fs, path, process)
+- Use HackHub APIs only
+
+## API Categories
+
+| Category | APIs |
+|----------|------|
+| **Core I/O** | `println()`, `prompt()`, `sleep()`, `newLine()` |
+| **Shell** | `Shell.GetArgs()`, `Shell.Process.exec()` |
+| **File System** | `FileSystem.cwd()`, `ReadDir()`, `ReadFile()`, `WriteFile()`, `Mkdir()`, `Remove()` |
+| **Networking** | `Networking.IsIp()`, `GetSubnet()`, `GetPorts()`, `PingPort()`, `GetPortData()`, `Wifi.*` |
+| **Crypto** | `Crypto.Hashcat.*`, `Crypto.Hash.*` |
+| **HackDB** | `HackDB.ListExploits()`, `SearchExploits()`, `DownloadExploit()` |
+| **Package Mgmt** | `checkLib()`, `installLib()` |
+| **Debug** | `Debug.Log()`, `Debug.Error()` |
+
+## Shell.Process.exec() - When to Use
+
+**Always use for CLI wrapper modules:**
+- DNS tools: `dig`, `nslookup`, `mxlookup`
+- Enumeration: `subfinder`, `dirhunter`, `lynx`
+- Python scripts: `nettree.py`, user enumeration scripts
+
+**Pattern:**
+```typescript
+// Redirect output to temp file for capture
+const tmpFile = "./tmp/output.txt";
+await Shell.Process.exec(`command ${target} > ${tmpFile}`);
+const output = await FileSystem.ReadFile(tmpFile, { absolute: false });
+```
+
+## Anti-Patterns
+
+- ❌ `console.log()` → use `println()` or `UI.ctx()`
+- ❌ `fetch()` → doesn't exist in HackHub
+- ❌ Standard npm modules → not available
+- ❌ `process.argv` → use `Shell.GetArgs()`
+
+## Error Handling
+
+Use try/catch with UI feedback:
+```typescript
+try {
+  await Shell.Process.exec(`command ${target}`);
+} catch (err) {
+  ui.error(`Command failed: ${err}`);
+  return { success: false };
+}
+```
 
 ## Mock Data Prohibition
 - **NEVER** use mock data, fake responses, or hardcoded examples in real modules
