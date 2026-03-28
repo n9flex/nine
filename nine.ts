@@ -27,6 +27,7 @@ import * as dig from "./modules/recon/dig";
 import * as nslookup from "./modules/recon/nslookup";
 import * as mxlookup from "./modules/recon/mxlookup";
 import * as lynx from "./modules/recon/lynx";
+import * as wifi from "./modules/recon/wifi";
 
 // ============================================================================
 // SECTION: Module Imports (Enumeration Modules - M3)
@@ -49,6 +50,7 @@ const MODULES: Record<string, { module: typeof scanner; aliases: string[] }> = {
   mxlookup: { module: mxlookup, aliases: ["--mxlookup"] },
   subfinder: { module: subfinder, aliases: ["--subfinder"] },
   lynx: { module: lynx, aliases: ["--lynx"] },
+  wifi: { module: wifi, aliases: ["--wifi"] },
   pyuserenum: { module: pyUserEnum, aliases: ["--pyuserenum"] },
   dirhunter: { module: dirhunter, aliases: ["--dirhunter"] }
 };
@@ -137,6 +139,10 @@ export async function main(args?: string[], scriptLocation?: string): Promise<vo
     case "lynx":
     case "--lynx":
       await handleModule("lynx", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "wifi":
+    case "--wifi":
+      await handleModule("wifi", effectiveArgs.slice(1), cwdAbsolute, ui);
       break;
     case "pyuserenum":
     case "--pyuserenum":
@@ -526,6 +532,7 @@ function showHelp(ui: UI): void {
   ui.print("  mxlookup", "MX record lookup");
   ui.print("  subfinder", "Subdomain enumeration");
   ui.print("  lynx", "OSINT harvest");
+  ui.print("  wifi", "WiFi auditor - scan, crack & connect");
   ui.print("  pyuserenum", "User enumeration");
   ui.print("  dirhunter", "Directory bruteforce");
   ui.divider();
