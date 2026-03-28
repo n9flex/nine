@@ -40,7 +40,8 @@ export async function run(
     return { success: false, data: { error: "Invalid target type" } };
   }
 
-  ui.info(`Looking up MX records for ${target}...`);
+  ui.section("MXLOOKUP");
+  ui.print("Target", target, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.pink });
 
   // Check/install mxlookup
   if (!checkLib("mxlookup")) {
@@ -138,6 +139,7 @@ export async function run(
   
   // If still no records found, return empty
   if (mxRecords.length === 0) {
+    ui.divider();
     ui.warn(`No MX records found for ${target}`);
     return {
       success: false,
@@ -146,6 +148,7 @@ export async function run(
     };
   }
 
+  ui.divider();
   ui.success(`Found ${mxRecords.length} MX record(s) for ${target}`);
 
   for (const mx of mxRecords) {

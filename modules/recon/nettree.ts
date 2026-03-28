@@ -55,7 +55,7 @@ export async function run(
 
   for (const target of targets) {
     ui.section("NET TREE DISCOVERY");
-    ui.info(`Target: ${target}`);
+    ui.print("Target", target, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.pink });
 
     // Ensure script is available
     const scriptPath = await ensurePythonScript("net_tree.py", "./python", ui);
