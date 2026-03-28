@@ -43,27 +43,42 @@ export async function run(
     await installLib("dirhunter");
   }
 
-  // Execute dirhunter
+  // Execute dirhunter - use temp file to capture output
+  const tempFile = ".dirhunter_output.txt";
   let directories: string[] = [];
 
   try {
-    const output = await Shell.Process.exec(`dirhunter ${target}`, { absolute: true });
+    await Shell.Process.exec(`dirhunter ${target} > ${tempFile}`);
+    const output = await FileSystem.ReadFile(tempFile, { absolute: false });
+    
+    // Cleanup
+    try {
+      await FileSystem.Remove(tempFile, { absolute: true });
+    } catch {
+      // Ignore cleanup errors
+    }
 
-    // Parse directories from output
-    const dirRegex = /\/([a-zA-Z0-9_-]+)/g;
-    directories = [...output.matchAll(dirRegex)]
-      .map((m) => `/${m[1]}`)
-      .filter((v, i, a) => a.indexOf(v) === i);
+    // Parse directories from output - match "Found: /path" pattern
+    const dirMatches = output.match(/Found:\s*(\/[^\s]*)/g);
+    if (dirMatches) {
+      directories = dirMatches
+        .map(m => m.replace(/Found:\s*/, ''))
+        .filter((v, i, a) => a.indexOf(v) === i);
+    }
   } catch {
-    // Silent fallback to mock directories
+    // Silent fallback
+    try {
+      await FileSystem.Remove(tempFile, { absolute: true });
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 
-  // Fallback to mock directories
   if (directories.length === 0) {
-    directories = ["/admin", "/api", "/login", "/images", "/css", "/js", "/uploads", "/backup"];
+    ui.warn(`No directories found on ${target}`);
+  } else {
+    ui.success(`Found ${directories.length} directorie(s) on ${target}`);
   }
-
-  ui.success(`Found ${directories.length} directorie(s) on ${target}`);
 
   // Display first 5 directories
   for (const dir of directories.slice(0, 5)) {

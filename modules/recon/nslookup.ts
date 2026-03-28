@@ -40,27 +40,46 @@ export async function run(
     return { success: false, data: { error: "Invalid target type" } };
   }
 
-  ui.info(`Looking up NS records for ${target}...`);
+  ui.section("NSLOOKUP");
+  ui.print("Target", target, { label: COLOR_PALETTE.white, value: COLOR_PALETTE.pink });
 
-  // Try nslookup command
-  let output = "";
+  // Try nslookup command - use temp file pattern like dig.ts
+  const tempFile = ".nslookup_output.txt";
   let resolvedIp: string | null = null;
 
   try {
-    const cwd = await FileSystem.cwd();
-    output = await Shell.Process.exec(`nslookup ${target}`, { absolute: true });
-
-    // Parse IP from nslookup output
-    const ipMatch = output.match(/Address:\s*(\d+\.\d+\.\d+\.\d+)/);
-    resolvedIp = ipMatch ? ipMatch[1] : null;
-  } catch {
-    // Silent fallback
+    // Execute nslookup and redirect to temp file
+    await Shell.Process.exec(`nslookup ${target} > ${tempFile}`);
+    
+    // Read the output file
+    const output = await FileSystem.ReadFile(tempFile, { absolute: false });
+    
+    // Cleanup
+    try {
+      await FileSystem.Remove(tempFile, { absolute: false });
+    } catch {
+      // Ignore cleanup errors
+    }
+    
+    // Extract all IPs - the last one is the resolved IP
+    const ipMatches = output.match(/\d+\.\d+\.\d+\.\d+/g);
+    resolvedIp = ipMatches && ipMatches.length > 0 ? ipMatches[ipMatches.length - 1] : null;
+  } catch (err) {
+    ui.error(`nslookup error: ${err}`);
+    // Cleanup on error
+    try {
+      await FileSystem.Remove(tempFile, { absolute: false });
+    } catch {
+      // Ignore cleanup errors
+    }
   }
 
-  // Fallback: generate deterministic IP based on domain hash
   if (!resolvedIp) {
-    const hash = target.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    resolvedIp = `93.184.${hash % 256}.${hash % 256}`;
+    ui.warn(`Could not resolve ${target}`);
+    return {
+      success: false,
+      data: { domain: target, error: "Resolution failed" },
+    };
   }
 
   // Update domain asset with resolved IP
@@ -69,7 +88,9 @@ export async function run(
     domainAsset.resolvedIp = resolvedIp;
   }
 
-  ui.success(`${target} resolves to ${resolvedIp}`);
+  ui.divider();
+  ui.print("IP", resolvedIp, { label: COLOR_PALETTE.gray, value: COLOR_PALETTE.pink });
+  ui.success(`Resolved: ${target} -> ${resolvedIp}`);
 
   return {
     success: true,
