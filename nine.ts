@@ -24,6 +24,17 @@ import * as scanner from "./modules/recon/scanner";
 import * as nettree from "./modules/recon/nettree";
 import * as geoip from "./modules/recon/geoip";
 import * as dig from "./modules/recon/dig";
+import * as nslookup from "./modules/recon/nslookup";
+import * as mxlookup from "./modules/recon/mxlookup";
+import * as subfinder from "./modules/recon/subfinder";
+import * as lynx from "./modules/recon/lynx";
+
+// ============================================================================
+// SECTION: Module Imports (Enumeration Modules - M3)
+// ============================================================================
+
+import * as pyUserEnum from "./modules/enum/pyUserEnum";
+import * as dirhunter from "./modules/enum/dirhunter";
 
 // ============================================================================
 // SECTION: Module Registry
@@ -33,7 +44,13 @@ const MODULES: Record<string, { module: typeof scanner; aliases: string[] }> = {
   scan: { module: scanner, aliases: ["-s", "--scan"] },
   nettree: { module: nettree, aliases: ["-n", "--nettree"] },
   geoip: { module: geoip, aliases: ["-g", "--geoip"] },
-  dig: { module: dig, aliases: ["-d", "--dig"] }
+  dig: { module: dig, aliases: ["-d", "--dig"] },
+  nslookup: { module: nslookup, aliases: ["--nslookup"] },
+  mxlookup: { module: mxlookup, aliases: ["--mxlookup"] },
+  subfinder: { module: subfinder, aliases: ["--subfinder"] },
+  lynx: { module: lynx, aliases: ["--lynx"] },
+  pyuserenum: { module: pyUserEnum, aliases: ["--pyuserenum"] },
+  dirhunter: { module: dirhunter, aliases: ["--dirhunter"] }
 };
 
 // ============================================================================
@@ -104,6 +121,30 @@ export async function main(args?: string[], scriptLocation?: string): Promise<vo
     case "-d":
     case "--dig":
       await handleModule("dig", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "nslookup":
+    case "--nslookup":
+      await handleModule("nslookup", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "mxlookup":
+    case "--mxlookup":
+      await handleModule("mxlookup", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "subfinder":
+    case "--subfinder":
+      await handleModule("subfinder", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "lynx":
+    case "--lynx":
+      await handleModule("lynx", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "pyuserenum":
+    case "--pyuserenum":
+      await handleModule("pyuserenum", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "dirhunter":
+    case "--dirhunter":
+      await handleModule("dirhunter", effectiveArgs.slice(1), cwdAbsolute, ui);
       break;
     case "help":
     case "-h":
@@ -462,6 +503,12 @@ function showHelp(ui: UI): void {
   ui.print("  nettree", "Network discovery");
   ui.print("  geoip", "Geolocation lookup");
   ui.print("  dig", "DNS lookup");
+  ui.print("  nslookup", "NS record lookup");
+  ui.print("  mxlookup", "MX record lookup");
+  ui.print("  subfinder", "Subdomain enumeration");
+  ui.print("  lynx", "OSINT harvest");
+  ui.print("  pyuserenum", "User enumeration");
+  ui.print("  dirhunter", "Directory bruteforce");
   ui.divider();
   ui.print("Examples", "");
   ui.print("  nine create MyMission 192.168.1.1", "");
