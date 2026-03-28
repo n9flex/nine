@@ -100,10 +100,17 @@ export async function run(
 
   ui.success(`Found ${directories.length} directorie(s) on ${target}`);
 
+  // Build newAssets for discovered directories
+  const newAssets = directories.map(dir => ({
+    type: "directory" as const,
+    value: dir,
+    parent: target,
+  }));
+
   return {
     success: true,
     data: { target, directories, count: directories.length },
-    newAssets: [],
+    newAssets,
   };
 }
 

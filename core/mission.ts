@@ -59,7 +59,8 @@ export async function createManifest(
       hashes: [],
       ntlmHashes: [],
       sessions: [],
-      files: []
+      files: [],
+      directories: []
     },
     history: []
   };
@@ -77,7 +78,24 @@ export async function loadManifest(
 ): Promise<MissionManifest | null> {
   const sanitizedName = sanitizeMissionName(missionName);
   const path = `${cwdAbsolute}/loot/${sanitizedName}/manifest.json`;
-  return readJson<MissionManifest>(path);
+  const manifest = await readJson<MissionManifest>(path);
+  
+  if (manifest) {
+    // Ensure all asset arrays exist (for backward compatibility with old manifests)
+    manifest.assets = {
+      ips: manifest.assets.ips || [],
+      domains: manifest.assets.domains || [],
+      emails: manifest.assets.emails || [],
+      credentials: manifest.assets.credentials || [],
+      hashes: manifest.assets.hashes || [],
+      ntlmHashes: manifest.assets.ntlmHashes || [],
+      sessions: manifest.assets.sessions || [],
+      files: manifest.assets.files || [],
+      directories: manifest.assets.directories || []
+    };
+  }
+  
+  return manifest;
 }
 
 export async function saveManifest(

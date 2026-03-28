@@ -77,6 +77,7 @@ export interface MissionManifest {
       decoded?: unknown;
     }>;
     files: string[];
+    directories: Array<{ path: string; target: string; discoveredAt: string; source: string }>;
   };
   history: HistoryEntry[];
 }
@@ -91,7 +92,7 @@ export interface ModuleMeta {
 }
 
 export interface NewAsset {
-  type: "ip" | "domain" | "email" | "credential" | "hash" | "session";
+  type: "ip" | "domain" | "email" | "credential" | "hash" | "session" | "directory";
   value: unknown;
   parent?: string;
   // Extended metadata for IP assets (from dig/probe)

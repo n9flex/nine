@@ -103,6 +103,16 @@ export async function executeModule(
             });
           }
           break;
+        case "directory":
+          if (typeof asset.value === "string") {
+            mission.assets.directories.push({
+              path: asset.value,
+              target: asset.parent || "unknown",
+              discoveredAt: timestamp,
+              source: module.meta.name
+            });
+          }
+          break;
       }
     }
 
