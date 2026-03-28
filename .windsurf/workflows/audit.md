@@ -30,7 +30,7 @@ Validate code against Nine CLI architecture rules.
 ### 2. Native APIs Only
 - ✅ `Networking.GetSubnet()`, `FileSystem.ReadFile()`
 - ❌ `Shell.Process.exec('nmap')`, `Shell.Process.exec('whois')`
-- ✅ Exception: Python wrappers only
+- ✅ Exception: Python wrappers and DNS modules (nslookup, mxlookup, dig, subfinder, lynx, dirhunter) may use `Shell.Process.exec()`
 
 ### 3. Runner Writes Manifest
 - ✅ `return { newAssets: [...] }` - Runner handles persistence
