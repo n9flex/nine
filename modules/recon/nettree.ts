@@ -60,12 +60,7 @@ export async function run(
     // Ensure script is available
     const scriptPath = await ensurePythonScript("net_tree.py", "./python", ui);
     if (!scriptPath) {
-      ui.warn("Using mock discovery");
-      const mockIps = ["192.168.1.10", "192.168.1.11"];
-      for (const ip of mockIps) {
-        allDiscovered.push({ type: "ip", value: ip, parent: target });
-      }
-      topologyResults.push({ target, output: "mock topology (download failed)" });
+      ui.error("Failed to download net_tree.py from HackDB");
       continue;
     }
 
