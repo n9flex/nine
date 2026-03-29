@@ -14,7 +14,7 @@ import { listDir } from "./lib/storage";
 // SECTION: Constants
 // ============================================================================
 
-const VERSION = "0.3.3";
+const VERSION = "0.3.4";
 
 // ============================================================================
 // SECTION: Module Imports (Reconnaissance Modules - M2)
