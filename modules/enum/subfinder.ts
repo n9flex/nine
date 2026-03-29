@@ -57,23 +57,22 @@ export async function run(
   }
 
   // Parse subdomains from output
-  let subdomains: string[] = [];
+  const subdomains: string[] = [];
   if (output) {
     const subdomainRegex = /([a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,})/g;
-    subdomains = [...output.matchAll(subdomainRegex)]
+    const matches = [...output.matchAll(subdomainRegex)]
       .map((m) => m[1])
       .filter((v, i, a) => a.indexOf(v) === i);
+    subdomains.push(...matches);
   }
 
-  // Fallback to mock data if none found
   if (subdomains.length === 0) {
-    subdomains = [
-      `www.${target}`,
-      `mail.${target}`,
-      `ftp.${target}`,
-      `api.${target}`,
-      `blog.${target}`,
-    ];
+    ui.warn(`No subdomains found for ${target}`);
+    return {
+      success: false,
+      data: { domain: target, subdomains: [], count: 0 },
+      newAssets: [],
+    };
   }
 
   ui.success(`Found ${subdomains.length} subdomain(s)`);

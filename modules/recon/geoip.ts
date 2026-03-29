@@ -2,7 +2,7 @@
 // ============================================================================
 // SECTION 1: Imports
 // ============================================================================
-import { UI } from "../../lib/ui";
+import { UI, COLOR_PALETTE } from "../../lib/ui";
 import { MissionManifest, ModuleResult } from "../../lib/types";
 
 // ============================================================================
@@ -37,43 +37,98 @@ function resolveTargets(mission: MissionManifest, args?: string[]): string[] {
  */
 interface GeoIPData {
   ip: string;
-  country: string;
-  city: string;
-  region: string;
-  latitude: number;
-  longitude: number;
-  isp: string;
+  country?: string;
+  city?: string;
+  region?: string;
+  latitude?: number;
+  longitude?: number;
+  isp?: string;
 }
 
 /**
- * Generates mock geolocation data for testing
- * In real implementation, this would call geoip command or API
+ * Executes geoip command and parses output
  */
-function generateMockGeoData(ip: string): GeoIPData {
-  // Generate deterministic mock data based on IP
-  const ipSum = ip.split(".").reduce((sum, octet) => sum + parseInt(octet, 10), 0);
-  const locations = [
-    { country: "United States", city: "New York", region: "NY", lat: 40.7128, lon: -74.006, isp: "Example ISP" },
-    { country: "United Kingdom", city: "London", region: "ENG", lat: 51.5074, lon: -0.1278, isp: "British Telecom" },
-    { country: "Germany", city: "Berlin", region: "BE", lat: 52.52, lon: 13.405, isp: "Deutsche Telekom" },
-    { country: "France", city: "Paris", region: "IDF", lat: 48.8566, lon: 2.3522, isp: "Orange" },
-    { country: "Japan", city: "Tokyo", region: "TK", lat: 35.6762, lon: 139.6503, isp: "NTT" },
-    { country: "Australia", city: "Sydney", region: "NSW", lat: -33.8688, lon: 151.2093, isp: "Telstra" },
-    { country: "Canada", city: "Toronto", region: "ON", lat: 43.6532, lon: -79.3832, isp: "Rogers" },
-    { country: "Brazil", city: "São Paulo", region: "SP", lat: -23.5505, lon: -46.6333, isp: "Vivo" },
-  ];
+async function performGeoIPLookup(ip: string): Promise<GeoIPData | null> {
+  const tempFile = "./tmp/geoip_output.txt";
+  
+  // Ensure temp directory exists
+  try {
+    await FileSystem.Mkdir("./tmp", { absolute: false });
+  } catch {
+    // Directory might already exist
+  }
 
-  const location = locations[ipSum % locations.length];
+  try {
+    // Try geoip command first
+    await Shell.Process.exec(`geoip ${ip} > ${tempFile}`);
+    const output = await FileSystem.ReadFile(tempFile, { absolute: false });
+    
+    // Cleanup
+    try {
+      await FileSystem.Remove(tempFile, { absolute: false });
+    } catch {
+      // Ignore cleanup errors
+    }
+    
+    return parseGeoIPOutput(output, ip);
+  } catch {
+    // Cleanup on error
+    try {
+      await FileSystem.Remove(tempFile, { absolute: false });
+    } catch {
+      // Ignore cleanup errors
+    }
+    return null;
+  }
+}
 
-  return {
-    ip,
-    country: location.country,
-    city: location.city,
-    region: location.region,
-    latitude: location.lat,
-    longitude: location.lon,
-    isp: location.isp,
-  };
+/**
+ * Parses geoip command output
+ */
+function parseGeoIPOutput(output: string, ip: string): GeoIPData | null {
+  const lines = output.split("\n").map(l => l.trim()).filter(l => l);
+  
+  const result: GeoIPData = { ip };
+  
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    
+    // Country
+    if (lowerLine.includes("country:") || lowerLine.includes("pays:")) {
+      const match = line.match(/(?:country|pays)[\s:]+(.+)/i);
+      if (match) result.country = match[1].trim();
+    }
+    
+    // City
+    else if (lowerLine.includes("city:") || lowerLine.includes("ville:")) {
+      const match = line.match(/(?:city|ville)[\s:]+(.+)/i);
+      if (match) result.city = match[1].trim();
+    }
+    
+    // Region/State
+    else if (lowerLine.includes("region:") || lowerLine.includes("state:") || lowerLine.includes("région:")) {
+      const match = line.match(/(?:region|state|région)[\s:]+(.+)/i);
+      if (match) result.region = match[1].trim();
+    }
+    
+    // ISP/Org
+    else if (lowerLine.includes("isp:") || lowerLine.includes("org:") || lowerLine.includes("organization:")) {
+      const match = line.match(/(?:isp|org|organization)[\s:]+(.+)/i);
+      if (match) result.isp = match[1].trim();
+    }
+    
+    // Coordinates (lat/lon)
+    else if (lowerLine.includes("latitude:") || lowerLine.includes("lat:")) {
+      const match = line.match(/(?:latitude|lat)[\s:]+(-?\d+\.?\d*)/i);
+      if (match) result.latitude = parseFloat(match[1]);
+    }
+    else if (lowerLine.includes("longitude:") || lowerLine.includes("lon:")) {
+      const match = line.match(/(?:longitude|lon|long)[\s:]+(-?\d+\.?\d*)/i);
+      if (match) result.longitude = parseFloat(match[1]);
+    }
+  }
+  
+  return result.country || result.city ? result : null;
 }
 
 // ============================================================================
@@ -103,16 +158,29 @@ export async function run(
     ui.info(`Looking up geolocation for ${target}...`);
 
     try {
-      // Note: Real implementation would use geoip command or API
-      // For testing, we use mock data since geoip API may not be available
-      const geoData = generateMockGeoData(target);
+      const geoData = await performGeoIPLookup(target);
+      
+      if (!geoData) {
+        ui.warn(`No geolocation data found for ${target}`);
+        continue;
+      }
 
-      ui.success(`Location: ${geoData.city}, ${geoData.country}`);
-      ui.print("Country", geoData.country, { label: "white", value: "cyan" });
-      ui.print("City", geoData.city, { label: "white", value: "cyan" });
-      ui.print("Region", geoData.region, { label: "white", value: "cyan" });
-      ui.print("ISP", geoData.isp, { label: "white", value: "cyan" });
-      ui.print("Coordinates", `${geoData.latitude}, ${geoData.longitude}`, { label: "white", value: "purple" });
+      ui.success(`Location: ${geoData.city || "Unknown"}, ${geoData.country || "Unknown"}`);
+      if (geoData.country) {
+        ui.print("Country", geoData.country, { label: COLOR_PALETTE.gray, value: COLOR_PALETTE.cyan });
+      }
+      if (geoData.city) {
+        ui.print("City", geoData.city, { label: COLOR_PALETTE.gray, value: COLOR_PALETTE.cyan });
+      }
+      if (geoData.region) {
+        ui.print("Region", geoData.region, { label: COLOR_PALETTE.gray, value: COLOR_PALETTE.cyan });
+      }
+      if (geoData.isp) {
+        ui.print("ISP", geoData.isp, { label: COLOR_PALETTE.gray, value: COLOR_PALETTE.cyan });
+      }
+      if (geoData.latitude !== undefined && geoData.longitude !== undefined) {
+        ui.print("Coordinates", `${geoData.latitude}, ${geoData.longitude}`, { label: COLOR_PALETTE.gray, value: COLOR_PALETTE.purple });
+      }
 
       results.push(geoData);
     } catch (err) {
