@@ -92,6 +92,18 @@ export async function runPythonScript(
     if (!installed) {
       return { success: false, error: "python3 not available" };
     }
+    
+    // Re-check after installation - may need a moment to be available
+    let retries = 3;
+    while (retries > 0 && !checkLib("python3")) {
+      ui.info("Waiting for python3 to be ready...");
+      await sleep(1000);
+      retries--;
+    }
+    
+    if (!checkLib("python3")) {
+      return { success: false, error: "python3 installed but not available in PATH" };
+    }
   }
 
   try {
@@ -122,6 +134,18 @@ export async function runPythonScriptWithOutput(
     const installed = await installLib("python3");
     if (!installed) {
       return { success: false, output: "", error: "python3 not available" };
+    }
+    
+    // Re-check after installation - may need a moment to be available
+    let retries = 3;
+    while (retries > 0 && !checkLib("python3")) {
+      ui.info("Waiting for python3 to be ready...");
+      await sleep(1000);
+      retries--;
+    }
+    
+    if (!checkLib("python3")) {
+      return { success: false, output: "", error: "python3 installed but not available in PATH" };
     }
   }
 
