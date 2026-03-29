@@ -376,8 +376,73 @@ async function handleAssets(cwdAbsolute: string, ui: UI): Promise<void> {
       })));
     }
 
+    if (manifest.assets.emails.length > 0) {
+      ui.section("Emails");
+      const emailRows = manifest.assets.emails.map((e, i) => ({ 
+        "#": String(i), 
+        "Email": e 
+      }));
+      ui.table(["#", "Email"], emailRows, {
+        rowColor: () => COLOR_PALETTE.cyan,
+      });
+    }
+
+    if (manifest.assets.directories.length > 0) {
+      ui.section("Directories");
+      ui.table(["Path", "Target", "Discovered"], manifest.assets.directories.map(d => ({
+        Path: d.path,
+        Target: d.target,
+        Discovered: new Date(d.discoveredAt).toLocaleDateString()
+      })));
+    }
+
+    if (manifest.assets.hashes.length > 0) {
+      ui.section("Hashes");
+      const hashRows = manifest.assets.hashes.map((h, i) => ({ 
+        "#": String(i), 
+        "Hash": h.substring(0, 20) + (h.length > 20 ? "..." : "") 
+      }));
+      ui.table(["#", "Hash"], hashRows, {
+        rowColor: () => COLOR_PALETTE.purple,
+      });
+    }
+
+    if (manifest.assets.ntlmHashes.length > 0) {
+      ui.section("NTLM Hashes");
+      ui.table(["IP", "Username", "Hash", "Cracked"], manifest.assets.ntlmHashes.map(n => ({
+        IP: n.ip,
+        Username: n.username,
+        Hash: n.hash.substring(0, 16) + "...",
+        Cracked: n.cracked || "Not cracked"
+      })));
+    }
+
+    if (manifest.assets.sessions.length > 0) {
+      ui.section("Sessions");
+      ui.table(["Type", "Target", "Extracted", "Value"], manifest.assets.sessions.map(s => ({
+        Type: s.type,
+        Target: s.target,
+        Extracted: new Date(s.extractedAt).toLocaleDateString(),
+        Value: s.value.substring(0, 20) + (s.value.length > 20 ? "..." : "")
+      })));
+    }
+
+    if (manifest.assets.files.length > 0) {
+      ui.section("Files");
+      const fileRows = manifest.assets.files.map((f, i) => ({ 
+        "#": String(i), 
+        "File": f 
+      }));
+      ui.table(["#", "File"], fileRows, {
+        rowColor: () => COLOR_PALETTE.white,
+      });
+    }
+
     if (manifest.assets.ips.length === 0 && manifest.assets.domains.length === 0 && 
-        manifest.assets.credentials.length === 0 && manifest.seeds.length === 0) {
+        manifest.assets.credentials.length === 0 && manifest.assets.emails.length === 0 &&
+        manifest.assets.directories.length === 0 && manifest.assets.hashes.length === 0 &&
+        manifest.assets.sessions.length === 0 && manifest.assets.files.length === 0 &&
+        manifest.seeds.length === 0) {
       ui.info("No assets discovered yet");
     }
   } catch (err) {
