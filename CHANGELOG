@@ -1,3 +1,9 @@
+**v0.3.3**
+- Add wifi cracking module
+- Add cracked_wifi.txt persistence (loot/cracked_wifi.txt)
+- Add skip already cracked networks
+- Add pcap cleanup after crack
+
 **v0.3.2**
 - Improve pyUserEnum and dirhunter ui
 - Fix pyEnumUser wasn't logging assets
