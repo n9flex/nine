@@ -40,11 +40,24 @@ export interface IPAsset {
 
 export interface DomainAsset {
   value: string;
-  source: "seed" | "subfinder" | "lynx" | "dns";
+  source: "seed" | "subfinder" | "lynx" | "dns" | "whois";
   parent?: string;
   resolvedIp?: string;
   vulnerable?: boolean;
   discoveredAt: string;
+  whois?: WhoisInfo;
+}
+
+export interface WhoisInfo {
+  domain: string;
+  registrar?: string;
+  creationDate?: string;
+  expirationDate?: string;
+  nameServers: string[];
+  registrant?: string;
+  adminContact?: string;
+  techContact?: string;
+  raw: string;
 }
 
 export interface HistoryEntry {

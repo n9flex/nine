@@ -36,6 +36,7 @@ import * as wifi from "./modules/recon/wifi";
 import * as subfinder from "./modules/enum/subfinder";
 import * as pyUserEnum from "./modules/enum/pyUserEnum";
 import * as dirhunter from "./modules/enum/dirhunter";
+import * as whois from "./modules/enum/whois";
 
 // ============================================================================
 // SECTION: Module Registry
@@ -52,7 +53,8 @@ const MODULES: Record<string, { module: typeof scanner; aliases: string[] }> = {
   lynx: { module: lynx, aliases: ["--lynx"] },
   wifi: { module: wifi, aliases: ["--wifi"] },
   pyuserenum: { module: pyUserEnum, aliases: ["--pyuserenum"] },
-  dirhunter: { module: dirhunter, aliases: ["--dirhunter"] }
+  dirhunter: { module: dirhunter, aliases: ["--dirhunter"] },
+  whois: { module: whois, aliases: ["--whois"] }
 };
 
 // ============================================================================
@@ -151,6 +153,10 @@ export async function main(args?: string[], scriptLocation?: string): Promise<vo
     case "dirhunter":
     case "--dirhunter":
       await handleModule("dirhunter", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "whois":
+    case "--whois":
+      await handleModule("whois", effectiveArgs.slice(1), cwdAbsolute, ui);
       break;
     case "help":
     case "-h":
@@ -317,6 +323,48 @@ async function handleAssets(cwdAbsolute: string, ui: UI): Promise<void> {
         Source: d.source,
         Parent: d.parent || "-"
       })));
+
+      // Show WHOIS details for domains with WHOIS data
+      const domainsWithWhois = manifest.assets.domains.filter(d => d.whois);
+      if (domainsWithWhois.length > 0) {
+        ui.section("WHOIS Details");
+        for (const domain of domainsWithWhois) {
+          if (domain.whois) {
+            const whoisRows: Array<{ Field: string; Value: string }> = [];
+            
+            if (domain.whois.status) {
+              whoisRows.push({ Field: "Status", Value: domain.whois.status });
+            }
+            if (domain.whois.registrar) {
+              whoisRows.push({ Field: "Registrar", Value: domain.whois.registrar });
+            }
+            if (domain.whois.registrant) {
+              whoisRows.push({ Field: "Registrant", Value: domain.whois.registrant });
+            }
+            if (domain.whois.registrantEmail) {
+              whoisRows.push({ Field: "Email", Value: domain.whois.registrantEmail });
+            }
+            if (domain.whois.creationDate) {
+              whoisRows.push({ Field: "Created", Value: domain.whois.creationDate });
+            }
+            if (domain.whois.expirationDate) {
+              whoisRows.push({ Field: "Expires", Value: domain.whois.expirationDate });
+            }
+            if (domain.whois.nameServers && domain.whois.nameServers.length > 0) {
+              whoisRows.push({ Field: "Name Servers", Value: domain.whois.nameServers.join(", ") });
+            }
+            
+            if (whoisRows.length > 0) {
+              ui.print(domain.value, "", { label: COLOR_PALETTE.white });
+              ui.table(["Field", "Value"], whoisRows, {
+                rowColor: (row) => row.Field === "Status" && row.Value.toLowerCase() === "active" 
+                  ? COLOR_PALETTE.green 
+                  : COLOR_PALETTE.cyan,
+              });
+            }
+          }
+        }
+      }
     }
 
     if (manifest.assets.credentials.length > 0) {
@@ -535,6 +583,7 @@ function showHelp(ui: UI): void {
   ui.print("  wifi", "WiFi auditor - scan, crack & connect");
   ui.print("  pyuserenum", "User enumeration");
   ui.print("  dirhunter", "Directory bruteforce");
+  ui.print("  whois", "Domain WHOIS lookup");
   ui.divider();
   ui.print("Examples", "");
   ui.print("  nine create MyMission 192.168.1.1", "");
