@@ -2,4 +2,6 @@
 
 Idea : 
 - Add ping module ?
-- Where is Whois ?
+- add nine note commands
+
+Tester ce que j'ai fais
