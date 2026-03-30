@@ -27,7 +27,8 @@ import * as dig from "./modules/recon/dig";
 import * as nslookup from "./modules/recon/nslookup";
 import * as mxlookup from "./modules/recon/mxlookup";
 import * as lynx from "./modules/recon/lynx";
-import * as wifi from "./modules/recon/wifi";
+import * as wifi from "./modules/access/wifi";
+import * as dirhunter from "./modules/access/dirhunter";
 
 // ============================================================================
 // SECTION: Module Imports (Enumeration Modules - M3)
@@ -35,7 +36,7 @@ import * as wifi from "./modules/recon/wifi";
 
 import * as subfinder from "./modules/enum/subfinder";
 import * as pyUserEnum from "./modules/enum/pyUserEnum";
-import * as dirhunter from "./modules/enum/dirhunter";
+import * as bruteforce from "./modules/access/bruteforce";
 import * as whois from "./modules/enum/whois";
 
 // ============================================================================
@@ -54,7 +55,7 @@ const MODULES: Record<string, { module: typeof scanner; aliases: string[] }> = {
   wifi: { module: wifi, aliases: ["--wifi"] },
   pyuserenum: { module: pyUserEnum, aliases: ["--pyuserenum"] },
   dirhunter: { module: dirhunter, aliases: ["--dirhunter"] },
-  whois: { module: whois, aliases: ["--whois"] }
+  bruteforce: { module: bruteforce, aliases: ["--bruteforce"] },
 };
 
 // ============================================================================
@@ -157,6 +158,10 @@ export async function main(args?: string[], scriptLocation?: string): Promise<vo
     case "whois":
     case "--whois":
       await handleModule("whois", effectiveArgs.slice(1), cwdAbsolute, ui);
+      break;
+    case "bruteforce":
+    case "--bruteforce":
+      await handleModule("bruteforce", effectiveArgs.slice(1), cwdAbsolute, ui);
       break;
     case "help":
     case "-h":
@@ -648,7 +653,7 @@ function showHelp(ui: UI): void {
   ui.print("  wifi", "WiFi auditor - scan, crack & connect");
   ui.print("  pyuserenum", "User enumeration");
   ui.print("  dirhunter", "Directory bruteforce");
-  ui.print("  whois", "Domain WHOIS lookup");
+  ui.print("  bruteforce", "Password bruteforce with hydra");
   ui.divider();
   ui.print("Examples", "");
   ui.print("  nine create MyMission 192.168.1.1", "");
